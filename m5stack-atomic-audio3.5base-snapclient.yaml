@@ -1,0 +1,141 @@
+external_components:
+  # I couldn't find mention of this in m5stack's docs, but I found it somewhere online and it made things work.
+  # Without this, the amp turned on and silent/static came out during playback, but no actual audio
+  # See https://github.com/m5stack/esphome-yaml/tree/main/components/es8311 for info
+  - source: github://m5stack/esphome-yaml/components@main
+    components: [es8311]
+    refresh: 1d
+  # https://github.com/esphome/esphome/pull/14389
+  - source: github://pr#14389
+    components: [ snapclient, media_player ]
+    refresh: 1d
+
+# ============================================================================
+# Core ESPHome Configuration
+# ============================================================================
+esphome:
+  # Uses the devicename variable defined above (m5stack-atoms3-lite)
+  name: ${devicename}
+
+  # Uses the friendly_name variable defined above
+  friendly_name: ${friendly_name}
+
+  # Uses the device_comment variable defined above
+  comment: ${device_comment}
+
+# ============================================================================
+# ESP32 Hardware Configuration
+# ============================================================================
+esp32:
+  framework:
+    type: esp-idf
+
+
+# ref: https://docs.m5stack.com/en/homeassistant/media_player/atomic_audio_3.5_base
+# ...#31-basic-configuration
+i2c:
+  - id: ext_bus
+    # sda: GPIO38
+    sda: ${i2c_sda}
+    # scl: GPIO39
+    scl: ${i2c_scl}
+# ...#35-speaker-amplifier-configuration
+# This is a "port extender" it just gives you more GPIO over I2C.
+# It is only used for this 1 single "speaker enable" PIN,
+# without it the builtin amp won't turn on.
+# FIXME: Consider marking this internal and always on.
+# FIXME: Can we switch this on/off from firmware when snapcast mutes/unmutes?
+pi4ioe5v6408:
+  - id: pi4ioe5v6408_hub
+    i2c_id: ext_bus
+    address: 0x43
+# You might need this switch if you replace snapcast with sendspin or similar
+# switch:
+#   - platform: gpio
+#     name: "Speaker Enable"
+#     id: speaker_enable
+#     pin:
+#       pi4ioe5v6408: pi4ioe5v6408_hub
+#       number: 0
+#       mode:
+#         output: true
+#     icon: "mdi:volume-high"
+#     # FIXME: Use DEFAULT_ON instead to avoid any confusion if I forgot I turned it off before reboot?
+#     restore_mode: RESTORE_DEFAULT_ON
+
+# ...#32-audio-configuration
+i2s_audio:
+  - id: i2s_audio_bus
+    # i2s_lrclk_pin: GPIO6
+    i2s_lrclk_pin: ${i2s_lrclk_pin}
+    # i2s_bclk_pin: GPIO8
+    i2s_bclk_pin: ${i2s_bclk_pin}
+audio_dac:
+  - platform: es8311
+    id: es8311_dac
+    i2c_id: ext_bus
+    bits_per_sample: 16bit
+    sample_rate: 48000
+    use_microphone: false
+    use_mclk: false
+
+# Uncomment this section for sendspin instead of snapcast
+# FIXME: Barely tested
+# speaker:
+#   - platform: i2s_audio
+#     id: i2s_speaker
+#     i2s_audio_id: i2s_audio_bus
+#     i2s_dout_pin: ${i2s_dout_pin}
+#     # i2s_dout_pin: GPIO5
+#     dac_type: external
+#     audio_dac: es8311_dac
+#     sample_rate: 48000
+#     channel: left
+# ...#33-media-player-configuration
+# sendspin:
+# media_source:
+#   - platform: sendspin
+#     id: sendspin_media_source
+#     buffer_size: 25000
+# media_player:
+#   - platform: speaker_source
+#     id: external_media_player
+#     name: Media Player
+#     volume_min: 0.5
+#     volume_max: 0.8
+#     media_pipeline:
+#       speaker: i2s_speaker
+#       format: FLAC
+#       sample_rate: "48000"
+#       num_channels: "1"
+#       sources:
+#         - sendspin_media_source
+
+# Uncomment this section for snapcast instead of sendspin
+media_player:
+  - platform: snapclient
+    # Don't show up in Home Assistant, because Home Assistant can't really use it anyway.
+    # FIXME: Is it possible to associate the snapcast player with this device?
+    internal: false
+    id: snapclient_media_player
+    # hostname: harvest.mike.abrahall.id.au
+    # port: 1704  # default
+    name: ${friendly_name}
+    mute_pin:
+      pi4ioe5v6408: pi4ioe5v6408_hub
+      number: 0
+      mode:
+        output: true
+    audio_dac: es8311_dac
+    i2s_dout_pin: ${i2s_dout_pin}
+    # i2s_dout_pin: GPIO5
+    on_play:
+      - logger.log: "Playback started!"
+    on_pause:
+      - logger.log: "Playback paused!"
+    on_idle:
+      - logger.log: "Playback finished!"
+    # on_state:
+    #   # FIXME: I would like to somehow flip a binary sensor or change an LED colour when the player is muted/unmuted.
+    #   #        Is this even possible?
+    #   - logger.log: "Playback State change!"
