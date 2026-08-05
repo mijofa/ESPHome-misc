@@ -130,7 +130,8 @@ button:
         # FIXME: I want to do this with ESPHome native actions.
         - lambda: |-
             lv_disp_trig_activity(NULL);
-        - lvgl.resume: atoms3r_display_lvgl
+        - lvgl.resume:
+            id: atoms3r_display_lvgl
 
 # The only obvious "user input" this thing really has, a single button under the display
 binary_sensor:
