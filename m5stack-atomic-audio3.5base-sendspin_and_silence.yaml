@@ -106,12 +106,10 @@ speaker:
 audio_file:
   # Simply a silent audio file, no one should know it's playing
   - id: silence
-    # FIXME: Document the generation of this file!
-    # FIXME: Put this file in the git repo!
     # I generated this with Audacity, by generating 5s of silence and exporting it according to the specs described in the filename
     # FIXME: Can we have esphome convert/resample (or even generate) this when compiling?
     #        I know we can at runtime, but that's more heavy-lifting than I want
-    file: "sounds/silence-5s-stereo-16bit-${audio_base_sample_rate}hz.flac"
+    file: "https://github.com/mijofa/ESPHome-misc/raw/2b08135acd003a6b9c43676d7d01a94c39ce892d/sounds/silence-5s-stereo-16bit-${audio_base_sample_rate}hz.flac"
 sendspin:
   # The sendspin hub itself, we can't use sendspin without it
   id: sendspin_hub
