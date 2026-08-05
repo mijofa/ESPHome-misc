@@ -91,27 +91,27 @@ display:
 
 ## Rendering engine
 lvgl:
-  id: atoms3r_display_lvgl
-  displays:
-    - atoms3r_display
-  rotation: ${atoms3r_display_rotation}
-  color_depth: 16
-  theme:
-    # I just want the background/underlay to be dark so it doesn't blind me during boot before the sendspin_album_art is populated
-    dark_mode: true
-  on_idle:
-    timeout: ${atoms3r_display_idle_timeout}
-    then:
-      # - logger.log: "LVGL idle"
-      - light.turn_off: atoms3r_display_backlight
-      # FIXME: Do some burn-in prevention screensaver stuff when idle.
-      #        ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
-  on_resume:
-    # Note that on_resume is not the inverse of on_idle, it's the inverse of on_pause.
-    # But I am explicitly triggering resume at the same time as I trigger the idle reset to get a similar effect
-    then:
-      # - logger.log: "LVGL resuming"
-      - light.turn_on: atoms3r_display_backlight
+  - id: atoms3r_display_lvgl
+    displays:
+      - atoms3r_display
+    rotation: ${atoms3r_display_rotation}
+    color_depth: 16
+    theme:
+      # I just want the background/underlay to be dark so it doesn't blind me during boot before the sendspin_album_art is populated
+      dark_mode: true
+    on_idle:
+      timeout: ${atoms3r_display_idle_timeout}
+      then:
+        # - logger.log: "LVGL idle"
+        - light.turn_off: atoms3r_display_backlight
+        # FIXME: Do some burn-in prevention screensaver stuff when idle.
+        #        ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
+    on_resume:
+      # Note that on_resume is not the inverse of on_idle, it's the inverse of on_pause.
+      # But I am explicitly triggering resume at the same time as I trigger the idle reset to get a similar effect
+      then:
+        # - logger.log: "LVGL resuming"
+        - light.turn_on: atoms3r_display_backlight
 
 ### Display wake/sleep handler
 button:
