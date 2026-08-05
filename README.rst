@@ -68,8 +68,8 @@ This is a hamfisted amalgamation of:
       comment: ${device_comment}
     packages:
       remote_package_files:
-        url: https://github.com/mijofa/hassio-addons
-        files: [ESPHome/m5stack-atomic-audio3.5base-snapclient.yaml]
+        url: https://github.com/mijofa/ESPHome-misc
+        files: [m5stack-atomic-audio3.5base-snapclient.yaml]
         # FIXME: Rename this upstream, cool kids use 'main' now
         ref: master
         refresh: 0s
