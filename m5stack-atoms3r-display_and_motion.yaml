@@ -1,0 +1,340 @@
+substitutions:
+  atoms3r_display_idle_timeout: 5s
+
+  atoms3r_display_rotation: 0°
+
+  # NOTE: Acceleration threshold needs to be at least 1.0 because there's always a g-force of 1 being applied
+  #       (unless you're in space I guess...)
+  movement_threshold_acceleration: 2
+  movement_threshold_gyroscope: 2
+  movement_threshold_angular_rate: 2
+
+  # If you want to use the motion sensors in Home Assistant, set this to false
+  movement_sensors_internal: true
+
+  # FIXME: Is it worth making any of the pin definitions into variables?
+
+external_components:
+  - source: github://m5stack/esphome-yaml/components@main
+    components:
+      - lp5562
+    refresh: 1d
+  # # Sendspin album art  https://github.com/esphome/esphome/pull/16057
+  # - source: github://pr#16057
+  #   components: [generic_image.sendspin]
+  #   refresh: 1h
+  # Sendspin album art  https://github.com/esphome/esphome/pull/17937
+  - source: github://pr#17937
+    components: [runtime_image, sendspin]
+    refresh: 1h
+
+### Internal comms bus
+i2c:
+  - id: atoms3r_i2c_bus
+    sda:
+      number: GPIO45
+      ignore_strapping_warning: true
+    scl:
+      number: GPIO0
+      ignore_strapping_warning: true
+    scan: true
+spi:
+  - id: atoms3r_spi_bus
+    clk_pin: GPIO15
+    mosi_pin: GPIO21
+
+### Backlight
+lp5562:
+  id: atoms3r_lp5562
+  i2c_id: atoms3r_i2c_bus
+  use_internal_clk: true
+  white_current: 17.5
+output:
+  - platform: lp5562
+    id: atoms3r_lp5562_white
+    lp5562_id: atoms3r_lp5562
+    channel: white
+light:
+  - platform: monochromatic
+    id: atoms3r_display_backlight
+    output: atoms3r_lp5562_white
+    # name: "Display Backlight"
+    # icon: "mdi:television"
+    internal: true
+    # FIXME: Should this be ALWAYS_ON?
+    restore_mode: ALWAYS_OFF
+
+### Display
+display:
+  - id: atoms3r_display
+    spi_id: atoms3r_spi_bus
+    platform: mipi_spi
+    # Ref my commentary here: https://github.com/m5stack/esphome-yaml/issues/104
+    model: M5CORE
+    invert_colors: true
+    color_depth: 16bit
+    # Use LVGL to set rotation, not display
+    # rotation: 180°
+    dimensions:
+      # FIXME: Didn't I see something somewhere about needing to updated the offset/padding when I change the rotation?
+      #        I've tested this with all 4 rotation options with zero issue
+      offset_width: 2
+      offset_height: 1
+      pad_height: 3
+      pad_width: 2
+      width: 128
+      height: 128
+    dc_pin: GPIO42
+    reset_pin: GPIO48
+    cs_pin: GPIO14
+    data_rate: 40MHz
+
+## Rendering engine
+lvgl:
+  - id: atoms3r_display_lvgl
+    displays:
+      - atoms3r_display
+    rotation: ${atoms3r_display_rotation}
+    color_depth: 16
+    theme:
+      # I just want the background/underlay to be dark so it doesn't blind me during boot before the sendspin_album_art is populated
+      dark_mode: true
+    on_idle:
+      timeout: ${atoms3r_display_idle_timeout}
+      then:
+        # - logger.log: "LVGL idle"
+        - light.turn_off: atoms3r_display_backlight
+        # FIXME: Do some burn-in prevention screensaver stuff when idle.
+        #        ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
+    on_resume:
+      # Note that on_resume is not the inverse of on_idle, it's the inverse of on_pause.
+      # But I am explicitly triggering resume at the same time as I trigger the idle reset to get a similar effect
+      then:
+        # - logger.log: "LVGL resuming"
+        - light.turn_on: atoms3r_display_backlight
+
+### Display wake/sleep handler
+button:
+  - platform: template
+    # This button simply resets lvgl's inactivity timer and turns the screen on when pressed.
+    # It's meant to be pressed anytime "user activity" occurs
+    #
+    # Realistically I could've copy/pasted the on_press actions into each of those places,
+    # but I figured this was more scalable in case I need to do more things from user activity.
+    # For example, implementing my own idle timeout instead of relying on lvgl.
+    id: atoms3r_display_lvgl_inactivity_reset
+    internal: True
+    on_press:
+      then:
+        # ref: https://github.com/orgs/esphome/discussions/3543
+        # FIXME: I want to do this with ESPHome native actions.
+        - lambda: |-
+            lv_disp_trig_activity(NULL);
+        - lvgl.resume:
+            id: atoms3r_display_lvgl
+
+# The only obvious "user input" this thing really has, a single button under the display
+binary_sensor:
+  - platform: gpio
+    # The user/integrator can set a name/icon/etc on this if they want using the '!extend atoms3r_display_button' syntax
+    id: atoms3r_display_button
+    pin:
+      number: GPIO41
+      mode: INPUT_PULLUP
+      inverted: true
+    on_press:
+      then:
+        - button.press: atoms3r_display_lvgl_inactivity_reset
+
+### Accelerometer/Gyroscope
+# FIXME: Make the magnetometer work? https://github.com/esphome/feature-requests/issues/3052
+motion:
+  - platform: bmi270
+    i2c_id: atoms3r_i2c_bus
+    id: atoms3r_motion_hub
+sensor:
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_acceleration_x
+    internal: ${movement_sensors_internal}
+    type: acceleration_x
+    name: "Accel X"
+    on_value_range:
+      - above: ${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_acceleration}
+        above: -${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_acceleration_y
+    internal: ${movement_sensors_internal}
+    type: acceleration_y
+    name: "Accel Y"
+    on_value_range:
+      - above: ${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_acceleration}
+        above: -${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_acceleration_z
+    internal: ${movement_sensors_internal}
+    type: acceleration_z
+    name: "Accel Z"
+    on_value_range:
+      - above: ${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_acceleration}
+        above: -${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_acceleration}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_angular_rate_x
+    internal: ${movement_sensors_internal}
+    type: angular_rate_x
+    name: "Angle X"
+    on_value_range:
+      - above: ${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_angular_rate}
+        above: -${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_angular_rate_y
+    internal: ${movement_sensors_internal}
+    type: angular_rate_y
+    name: "Angle Y"
+    on_value_range:
+      - above: ${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_angular_rate}
+        above: -${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_angular_rate_z
+    internal: ${movement_sensors_internal}
+    type: angular_rate_z
+    name: "Angle Z"
+    on_value_range:
+      - above: ${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_angular_rate}
+        above: -${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_angular_rate}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_gyroscope_x
+    internal: ${movement_sensors_internal}
+    type: gyroscope_x
+    name: "Gyro X"
+    on_value_range:
+      - above: ${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_gyroscope}
+        above: -${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_gyroscope_y
+    internal: ${movement_sensors_internal}
+    type: gyroscope_y
+    name: "Gyro Y"
+    on_value_range:
+      - above: ${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_gyroscope}
+        above: -${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  - platform: motion
+    motion_id: atoms3r_motion_hub
+    id: atoms3r_gyroscope_z
+    internal: ${movement_sensors_internal}
+    type: gyroscope_z
+    name: "Gyro Z"
+    on_value_range:
+      - above: ${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+      - below: ${movement_threshold_gyroscope}
+        above: -${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Halted"
+      - below: -${movement_threshold_gyroscope}
+        then:
+          # - logger.log: "Moving"
+          - button.press: atoms3r_display_lvgl_inactivity_reset
+  # These don't indicate change, so are not relevant
+  # - platform: motion
+  #   motion_id: atoms3r_motion_hub
+  #   id: atoms3r_roll
+  #   internal: ${movement_sensors_internal}
+  #   type: roll
+  #   name: "Roll"
+  # - platform: motion
+  #   motion_id: atoms3r_motion_hub
+  #   id: atoms3r_pitch
+  #   internal: ${movement_sensors_internal}
+  #   type: pitch
+  #   name: "Pitch"
+
