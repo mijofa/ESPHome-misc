@@ -1,76 +1,80 @@
+substitutions:
+  # ref: https://docs.m5stack.com/en/atom/Atomic%20SPK%20Base#compatible
+  # These are the pins used by the AtomS3-Lite
+  # You should redefine them regardless as I may change my mind what I want to use by default
+  spk_base_pin_lrclk: GPIO39
+  spk_base_pin_data: GPIO38
+  spk_base_pin_bclk: GPIO5
+  # # I'm not actually using these (currently?) as they are intended for the SD card slot
+  # spk_base_pin_spi_mosi: GPIO6
+  # spk_base_pin_spi_clk: GPIO7
+  # spk_base_pin_spi_miso: GPIO8
+
+  # FIXME: Can I make this into a runtime configurable select entity in Home Assistant?
+  spk_base_channel: mono
+  spk_base_sample_rate: 32000  # DO NOT CHANGE without also updating the silent flac file as needed
+  sendspin_use_psram: false
+  sendspin_buffer_size: 25000
+
 external_components:
   # https://github.com/esphome/esphome/pull/14389
   - id: upstream_pr_snapclient
     source: github://pr#14389
     components: [ snapclient, media_player ]
     refresh: 1d
-  # - id: upstream_pr_snapclient
-  #   source: github://mijofa/esphome-luar123-snapclient@snapclient2
-  #   components: [ snapclient, media_player ]
-  #   refresh: 0s
 
 # ============================================================================
 # ESP32 Hardware Configuration
 # ============================================================================
 esp32:
   framework:
+    # NOTE: Requires this framework... I don't remember why
     type: esp-idf
 
+### i2s communication bus
 # Main ref: https://community.home-assistant.io/t/solved-esphome-media-player-with-m5stack-spk-kit-and-atoms3-lite/784663
 i2s_audio:
-  - id: i2s_audio_bus
-    i2s_lrclk_pin: ${i2s_lrclk_pin}
-    i2s_bclk_pin: ${i2s_bclk_pin}
+  - id: spk_base_i2s_audio
+    i2s_lrclk_pin: "${spk_base_pin_lrclk}"
+    i2s_bclk_pin: "${spk_base_pin_bclk}"
 
-# Uncomment this section for sendspin instead of snapcast
-# FIXME: Barely tested
-# speaker:
-#   - platform: i2s_audio
-#     id: i2s_speaker
-#     i2s_audio_id: i2s_audio_bus
-#     i2s_dout_pin: ${i2s_dout_pin}
-#     # i2s_dout_pin: GPIO5
-#     dac_type: external
-#     audio_dac: es8311_dac
-#     sample_rate: 48000
-#     channel: left
-# ...#33-media-player-configuration
-# sendspin:
-# media_source:
-#   - platform: sendspin
-#     id: sendspin_media_source
-#     buffer_size: 25000
-# media_player:
-#   - platform: speaker_source
-#     id: external_media_player
-#     name: Media Player
-#     volume_min: 0.5
-#     volume_max: 0.8
-#     media_pipeline:
-#       speaker: i2s_speaker
-#       format: FLAC
-#       sample_rate: "48000"
-#       num_channels: "1"
-#       sources:
-#         - sendspin_media_source
+### Speaker output
+speaker:
+  # This is the actual audio output of the audio base itself
+  - platform: i2s_audio
+    id: spk_base_i2s_speaker
+    i2s_audio_id: spk_base_i2s_audio
+    i2s_dout_pin: "${spk_base_pin_din}"
+    sample_rate: "${spk_base_sample_rate}"
+    channel: "${spk_base_channel}"
 
+### Media player inputs
+sendspin:
+  # The sendspin hub itself, we can't use sendspin without it
+  id: sendspin_hub
+  task_stack_in_psram: "${sendspin_use_psram}"
 
-# Uncomment this section for snapcast instead of sendspin
+media_source:
+  - platform: sendspin
+    id: media_source_sendspin
+    task_stack_in_psram: "${sendspin_use_psram}"
+    buffer_size: "${sendspin_buffer_size}"
+    sample_rate: "${spk_base_sample_rate}"
 media_player:
-  - platform: snapclient
-    # Don't show up in Home Assistant, because Home Assistant can't really do anything with it anyway.
-    # FIXME: Is it possible to associate the snapcast player with this device?
+  # Actually play sound from Sendspin
+  - platform: speaker_source
+    id: media_player_sendspin
+    # No point showing this to Home Assistant because Music Assistant will do that for us.
+    # FIXME: Can I have Home Assistant combine the ESPHome device with the Music Assistant one?
     internal: true
-    id: snapclient_media_player
-    # hostname:  # Uses mDNS by default
-    # port: 1704  # default
-    name: ${friendly_name}
-    i2s_dout_pin: ${i2s_dout_pin}
-    on_play:
-      - logger.log: "Playback started!"
-    on_pause:
-      - logger.log: "Playback paused!"
-    on_idle:
-      - logger.log: "Playback finished!"
-    on_state:
-      - logger.log: "Playback State change!"
+    # This spk base has an amplifier, not a dac, so I assume reducing the volume range is not a good idea
+    # # FIXME: These numbers were used by m5stack upstream, are they reasonable?
+    # volume_min: 0.5
+    # volume_max: 0.8
+    media_pipeline:
+      speaker: spk_base_i2s_speaker
+      format: FLAC
+      sample_rate: "${spk_base_sample_rate}"
+      num_channels: "1"
+      sources:
+        - media_source_sendspin
