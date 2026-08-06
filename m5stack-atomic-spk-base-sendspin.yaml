@@ -34,8 +34,8 @@ i2s_audio:
 ### Speaker output
 speaker:
   # This is the actual audio output of the audio base itself
-  - platform: i2s_audio
-    id: spk_base_i2s_speaker
+  - id: spk_base_i2s_speaker
+    platform: i2s_audio
     # FIXME: I don't understand why I need dac_type when there's no configurable dac
     dac_type: external
     i2s_audio_id: spk_base_i2s_audio
@@ -50,15 +50,15 @@ sendspin:
   task_stack_in_psram: "${sendspin_use_psram}"
 
 media_source:
-  - platform: sendspin
-    id: media_source_sendspin
+  - id: media_source_sendspin
+    platform: sendspin
     task_stack_in_psram: "${sendspin_use_psram}"
     buffer_size: "${sendspin_buffer_size}"
     sample_rate: "${spk_base_sample_rate}"
 media_player:
   # Actually play sound from Sendspin
-  - platform: speaker_source
-    id: media_player_sendspin
+  - id: media_player_sendspin
+    platform: speaker_source
     # No point showing this to Home Assistant because Music Assistant will do that for us.
     # FIXME: Can I have Home Assistant combine the ESPHome device with the Music Assistant one?
     internal: true
