@@ -58,8 +58,7 @@ light:
   - platform: monochromatic
     id: atoms3r_display_backlight
     output: atoms3r_lp5562_white
-    # name: "Display Backlight"
-    # icon: "mdi:television"
+    name: "Display Backlight"  # Only setting this to avoid confusion when I override "internal: false"
     internal: true
     # FIXME: Should this be ALWAYS_ON?
     restore_mode: ALWAYS_OFF
@@ -100,18 +99,42 @@ lvgl:
       # I just want the background/underlay to be dark so it doesn't blind me during boot before the sendspin_album_art is populated
       dark_mode: true
     on_idle:
-      timeout: ${atoms3r_display_idle_timeout}
-      then:
-        # - logger.log: "LVGL idle"
-        - light.turn_off: atoms3r_display_backlight
-        # FIXME: Do some burn-in prevention screensaver stuff when idle.
-        #        ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
+      - timeout: ${atoms3r_display_idle_timeout}
+        then:
+          - if:
+              condition:
+                - light.is_on: atoms3r_display_backlight
+              then:
+                - logger.log: "LVGL burn-in prvention"
+                - light.turn_off: atoms3r_display_backlight
+                - delay: 2s  # Wait for the backlight to fade off
+                # Do some burn-in prevention screensaver stuff when idle.
+                # ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
+                #
+                # Exercise the pixels for ~30s, to (theoretically) undo any burn-in already caused
+                # FIXME: I suspect this needs to be a lot longer to be useful
+                - lvgl.pause:
+                    id: atoms3r_display_lvgl
+                    show_snow: true
+                - delay: 30s
+                # Turn all the pixels off, to (theoretically) avoid causing any more burn-in
+                - lvgl.resume:
+                    id: atoms3r_display_lvgl
+                - lvgl.update:
+                    id: atoms3r_display_lvgl
+                    top_layer:
+                      # FIXME: Benefit in using the colour hex codes?
+                      bg_color: BLACK
+                      bg_opa: COVER
     on_resume:
       # Note that on_resume is not the inverse of on_idle, it's the inverse of on_pause.
-      # But I am explicitly triggering resume at the same time as I trigger the idle reset to get a similar effect
+      # But I am explicitly triggering pause on_idle and triggering resume as I trigger the idle reset to get a similar effect
       then:
-        # - logger.log: "LVGL resuming"
-        - light.turn_on: atoms3r_display_backlight
+        # Stop keeping the pixels off per the on_idle stuff above
+        - lvgl.update:
+            id: atoms3r_display_lvgl
+            top_layer:
+              bg_opa: TRANSP
 
 ### Display wake/sleep handler
 button:
@@ -128,10 +151,12 @@ button:
       then:
         # ref: https://github.com/orgs/esphome/discussions/3543
         # FIXME: I want to do this with ESPHome native actions.
+        # FIXME: Should NULL here be the display ID?
         - lambda: |-
             lv_disp_trig_activity(NULL);
         - lvgl.resume:
             id: atoms3r_display_lvgl
+        - light.turn_on: atoms3r_display_backlight
 
 # The only obvious "user input" this thing really has, a single button under the display
 binary_sensor:
