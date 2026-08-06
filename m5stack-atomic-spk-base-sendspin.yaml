@@ -16,13 +16,6 @@ substitutions:
   sendspin_use_psram: false
   sendspin_buffer_size: 25000
 
-external_components:
-  # https://github.com/esphome/esphome/pull/14389
-  - id: upstream_pr_snapclient
-    source: github://pr#14389
-    components: [ snapclient, media_player ]
-    refresh: 1d
-
 # ============================================================================
 # ESP32 Hardware Configuration
 # ============================================================================
