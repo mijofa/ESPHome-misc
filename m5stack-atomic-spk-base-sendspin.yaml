@@ -62,10 +62,11 @@ media_player:
     # No point showing this to Home Assistant because Music Assistant will do that for us.
     # FIXME: Can I have Home Assistant combine the ESPHome device with the Music Assistant one?
     internal: true
-    # This spk base has an amplifier, not a dac, so I assume reducing the volume range is not a good idea
-    # # FIXME: These numbers were used by m5stack upstream, are they reasonable?
-    # volume_min: 0.5
-    # volume_max: 0.8
+    # The amp in this thing is very loud, but there's also some static.
+    # So if we leave the volume here too low, it'll sound like shit.
+    # This only affects the "hardware" volume, sendspin and/or music assistant transparently uses software volume as needed
+    volume_min: 0.75
+    volume_max: 1.0
     media_pipeline:
       speaker: spk_base_i2s_speaker
       format: FLAC
