@@ -1,0 +1,402 @@
+substitutions:
+  display_button_id: atoms3r_display_button
+  display_lvgl_id: atoms3r_display_lvgl
+  display_player_id: media_player_sendspin
+
+binary_sensor:
+  - id: !extend ${display_button_id}
+    name: Button
+    # FIXME: Add an icon
+    on_multi_click:
+      # ref: https://esphome.io/components/binary_sensor/#on_multi_click
+      - timing:
+          - ON for at most 1s
+          - OFF for at most 1s
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - logger.log: "Double Clicked"
+          # - media_player.stop: media_player_sendspin
+      - timing:
+          - ON for at most 1s
+          - OFF for at most 1s
+          - ON for at most 1s
+          - OFF for at most 1s
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - logger.log: "Triple Clicked"
+          - media_player.stop: media_player_sendspin
+      - timing:
+          - ON for 1s to 3s
+          - OFF for at least 0.5s
+        then:
+          - logger.log: "Single Long Clicked"
+          - media_player.pause: media_player_sendspin
+      - timing:
+          - ON for at most 1s
+          - OFF for at least 0.5s
+        then:
+          - logger.log: "Single Short Clicked"
+          - if:  # Unmute if there's any reason we're not currently making sound
+              any:
+                - media_player.is_muted: media_player_sendspin
+                - media_player.is_off: media_player_sendspin
+                - media_player.is_paused: media_player_sendspin
+                - media_player.is_idle: media_player_sendspin
+              then:
+                - media_player.unmute: media_player_sendspin
+              else:
+                - media_player.mute: media_player_sendspin
+          - if:  # Turn on if we're off
+              condition:
+                - media_player.is_off: media_player_sendspin
+              then:
+                - media_player.turn_on: media_player_sendspin
+          # - if:
+          #     all:
+          #       - text_sensor.state:
+          #           id: wifi_connected_ssid
+          #           state: 'Surveillance van #42'
+          #       - media_player.is_idle: media_player_sendspin
+          #     then:
+          #       - media_player.volume_set:
+          #           id: media_player_sendspin
+          #           volume: 75%
+          #       - media_player.play_media:
+          #           id: media_player_sendspin
+          #           media_url: https://coderadio-admin-v2.freecodecamp.org/listen/coderadio/low.mp3
+          #       - delay: 0.5s  # Wait until after the vol/mute state change
+          #       - lvgl.label.update: 
+          #           id: lbl_playback_state
+          #           text: "\U0000ef64"  # pending
+          - if:  # Press play if we're paused or stopped
+              any:
+                - media_player.is_paused: media_player_sendspin
+                - media_player.is_idle: media_player_sendspin
+              then:
+                - media_player.play: media_player_sendspin
+
+globals:
+  - type: double
+    id: media_player_sendspin_previous_volume
+  - type: esphome::media_player::MediaPlayerState
+    id: media_player_sendspin_previous_state
+
+# text_sensor:
+#   # The only reason for this sensor is to play Coderadio **only** when tethered to my phone
+#   - platform: wifi_info
+#     ssid:
+#       id: wifi_connected_ssid
+#       internal: true
+#       icon: "mdi:wifi-settings"
+#       on_value:
+#         - then:
+# media_source:
+#   - platform: audio_http
+#     id: http_source
+# speaker:
+#   - id: !remove audio_base_mixer
+media_player:
+  # - id: !remove media_player_silence
+  - id: !extend ${display_player_id}
+    # media_pipeline:
+    #   speaker: audio_base_i2s_speaker
+    #   format: MP3  # Required for coderadio
+    #   sources:
+    #     - http_source
+    volume_min: 0.45
+    volume_max: 0.6
+    on_mute:
+      then:
+        - logger.log: "Sendspin Muted"
+        - switch.turn_off: audio_base_speaker_enable
+        - lvgl.label.update: 
+            id: lbl_playback_state
+            text: "\U0000e04f"  # volume_off
+    on_idle:
+      then:
+        - logger.log: "Sendspin Idle"
+        - switch.turn_off: audio_base_speaker_enable
+        - lvgl.label.update: 
+            id: lbl_playback_state
+            text: "\U0000ef71"  # stop
+        - lvgl.animation.start: sendspin_art_hide
+    on_pause:
+      then:
+        - logger.log: "Sendspin Pause"
+        - switch.turn_off: audio_base_speaker_enable
+        - lvgl.label.update: 
+            id: lbl_playback_state
+            text: "\U0000e1a2"  # pause
+    on_turn_off:
+      then:
+        - logger.log: "Sendspin Turn off"
+        - switch.turn_off: audio_base_speaker_enable
+    on_unmute:
+      then:
+        - logger.log: "Sendspin Unmuted"
+        - switch.turn_on: audio_base_speaker_enable
+        - lvgl.label.update: 
+            id: lbl_playback_state
+            # FIXME: play/pause/stop accordingly
+            text: "\U0000e050"  # volume_up
+        - delay: 2s
+        - if:
+            condition:
+              - media_player.is_playing: media_player_sendspin
+            then:
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000e1c4"  # play_arrow
+        - if:
+            condition:
+              - media_player.is_paused: media_player_sendspin
+            then:
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000e1a2"  # pause
+        - if:
+            condition:
+              - media_player.is_idle: media_player_sendspin
+            then:
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000ef71"  # stop
+    on_play:
+      then:
+        # FIXME: This is triggering every time I change volume and at other wrong times when it's already playing
+        - logger.log: "Sendspin Play"
+        - if:
+            condition:
+              - media_player.is_muted: media_player_sendspin
+            then:
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000e04f"  # volume_off
+            else:
+              - switch.turn_on: audio_base_speaker_enable
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000e1c4"  # play_arrow
+        - lvgl.animation.start: sendspin_art_show
+    on_announcement:
+      then:
+        - logger.log: "Sendspin Announcement"
+        - switch.turn_on: audio_base_speaker_enable
+        - lvgl.label.update: 
+            id: lbl_playback_state
+            text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
+    on_volume:
+      then:
+        # FIXME: Show vol+/- icon for a few seconds
+        - if:
+            condition:
+              - lambda: |-  # Volume down
+                  return id(media_player_sendspin_previous_volume) > id(media_player_sendspin).volume;
+            then:
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000e04d"  # volume_down
+            else:  # Assume volume up
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000e050"  # volume_up
+        - lambda: |-
+            id(media_player_sendspin_previous_volume) = id(media_player_sendspin).volume;
+
+        - delay: 2s
+        - if:
+            condition:
+              - media_player.is_playing: media_player_sendspin
+            then:
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000e1c4"  # play_arrow
+        - if:
+            condition:
+              - media_player.is_paused: media_player_sendspin
+            then:
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000e1a2"  # pause
+        - if:
+            condition:
+              - media_player.is_idle: media_player_sendspin
+            then:
+              - lvgl.label.update: 
+                  id: lbl_playback_state
+                  text: "\U0000ef71"  # stop
+    on_turn_on:
+      then:
+        - logger.log: "Sendspin Turn on"
+    on_state:
+      then:
+        - if:
+            condition:
+              - lambda: |-  # State has actually changed
+                  return id(media_player_sendspin_previous_state) != id(media_player_sendspin).state;
+            then:
+              - lambda: |-  # FIXME: Can logger.log be used for this properly?
+                  ESP_LOGD("media_player",
+                           "Confirmed media player state changed: %s -> %s",
+                           media_player_state_to_string(id(media_player_sendspin_previous_state)),
+                           media_player_state_to_string(id(media_player_sendspin).state));
+            # FIXME: Run script to (maybe) update displayed state
+        - lambda: |-  # Record new state se we can detect the next change properly
+            id(media_player_sendspin_previous_state) = id(media_player_sendspin).state;
+        # - logger.log: "Sendspin state..."
+    # on_state:
+    #   then:
+    #     - logger.log:
+    #         format: "Sendspin state: %s"
+    #         args:
+    #           - !lambda id(sendspin_media_player).state
+
+    
+font:
+#   - id: font_roboto
+#     size: 24
+#     file:
+#       type: gfonts
+#       family: Roboto
+  # FIXME: Consider emoji instead?  https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/issues/125
+  #        That would at least render similarly in the editor
+  # FIXME: These can't really be recognised in front of the sendspin cover art.
+  #        I want a drop-shadow/cell-shading/border to resolve that,
+  #        but that's not possible with ESPHome's font rendnerer.
+  #        I considered Google's 'Two Tone' symbols font, but that uses otf, which ESPHome does not support.
+  #        I think the only viable solution here is to throw away the 'font' method and use svg or png instead.
+  - id: material_symbols
+    file: 
+      type: gfonts
+      family: Material Symbols
+    size: 96
+    glyphs:
+      # Loading indicators?
+      # - "\U0000ea5c"  # hourglass_bottom
+      # - "\U0000ef53"  # hourglass_disabled
+      # - "\U0000e88b"  # hourglass_empty
+      # - "\U0000e88c"  # hourglass_full
+      - "\U0000ef64"  # pending
+      # # Playback state
+      # - "\U0000e037"  # play_arrow
+      # - "\U0000e034"  # pause
+      # - "\U0000e047"  # stop
+      # Playback state, with circles
+      - "\U0000e1c4"  # play_circle
+      - "\U0000e1a2"  # pause_circle
+      - "\U0000ef71"  # stop_circle
+      # # Playback state, with explicitly outlined circles
+      # - "\U0000e039"  # play_circle_outline
+      # - "\U0000e036"  # pause_circle_outline
+      # # Playback state, with explicitly filled circles
+      # - "\U0000e038"  # play_circle_filled
+      # - "\U0000e035"  # pause_circle_filled
+      # Volume state
+      - "\U0000e050"  # volume_up
+      - "\U0000e04f"  # volume_off
+      - "\U0000e04e"  # volume_mute
+      - "\U0000e04d"  # volume_down
+      # # Announcement indicator?
+      - "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
+      # - "\U0000e85a"  # announcement  [Looks like an important speech bubble]
+      # - "\U0000e8c8"  # settings_voice
+      # - "\U0000e39f"  # assistant
+
+image:
+  - platform: sendspin
+    id: image_sendspin_art
+    format: JPEG
+    type: RGB565
+    resize: 128x128
+    source: ALBUM
+    current_image:
+      id: image_sendspin_art_current
+    transition_image:
+      id: image_sendspin_art_transition
+    # on_image_display:
+    #   - logger.log:
+    #       format: "Album art displayed (late by %u ms)"
+    #       args: ["(unsigned) lateness_ms"]
+    #   # Stand in for a display transition. With a transition image, every display must end
+    #   # with transition_finished so the next frame is released.
+    #   - delay: 300ms
+    #   - sendspin.image.transition_finished: sendspin_album_art
+    on_image_clear:
+      - logger.log: "Album art cleared"
+    on_image_error:
+      - logger.log: "Album art error"
+
+    # Start the fade 1s before the track boundary so the 2s cross-fade straddles it.
+    display_offset: 1s
+    on_image_display:
+      # A widget keeps drawing the buffer it was last pointed at until its source is set again, so
+      # both widgets are re-pointed on every display: the top widget at the outgoing frame
+      # (covering the bottom), the bottom widget at the new frame. The transition image is black
+      # before the first artwork, so the first fade needs no special case.
+      - lvgl.image.update:
+          id: outgoing_art
+          src: image_sendspin_art_transition
+      - lvgl.image.update:
+          id: incoming_art
+          src: image_sendspin_art_current
+      - lvgl.animation.start: sendspin_art_crossfade
+
+lvgl:
+  - id: !extend ${display_lvgl_id}
+    animations:
+      # Fades the top widget out to reveal the new artwork underneath. Starting it also snaps the
+      # widget back to full opacity, and on_stop acks the transition so the library can deliver the
+      # next artwork.
+      - id: sendspin_art_crossfade
+        duration: 2s
+        widgets:
+          - id: outgoing_art
+            opa:
+              from: 100%
+              to: 0%
+        on_stop:
+          - sendspin.image.transition_finished: image_sendspin_art
+      # Fades the whole sendspin container out
+      - id: sendspin_art_hide
+        duration: 1s
+        widgets:
+          - id: lvgl_widget_sendspin_art
+            opa:
+              from: 100%
+              to: 0%
+      # Fades the whole sendspin container in
+      - id: sendspin_art_show
+        duration: 1s
+        widgets:
+          - id: lvgl_widget_sendspin_art
+            opa:
+              from: 0%
+              to: 100%
+    widgets:
+      - container:
+          id: lvgl_widget_sendspin_art
+          # Hide by default, don't become visible until the show animation plays
+          opa: 0%
+          widgets:
+            # Cross-fade pair: the bottom widget always shows the current artwork; the top widget is
+            # pointed at the outgoing frame on each display event and faded out over it.
+            - image:
+                id: incoming_art
+                src: image_sendspin_art_current
+            - image:
+                id: outgoing_art
+                src: image_sendspin_art_current
+      - label:
+          # ref: https://esphome.io/cookbook/lvgl/#battery-status-icon
+          id: lbl_playback_state
+          align: CENTER
+          text_font: material_symbols
+          # LVGL doesn't support a giving the text an outline, sadly.
+          # I tried abusing both shadow & drop_shadow into something, but it wasn't viable
+          # this blend mode has a somewhat useful effect of effectively inverting the underlaying colour
+          blend_mode: DIFFERENCE
+          text_color: white
+          text: "\U0000ef64"  # pending
+
