@@ -9,60 +9,29 @@ globals:
   - type: esphome::media_player::MediaPlayerState
     id: media_player_sendspin_previous_state
 
-# text_sensor:
-#   # The only reason for this sensor is to play Coderadio **only** when tethered to my phone
-#   - platform: wifi_info
-#     ssid:
-#       id: wifi_connected_ssid
-#       internal: true
-#       icon: "mdi:wifi-settings"
-#       on_value:
-#         - then:
-# media_source:
-#   - platform: audio_http
-#     id: http_source
-# speaker:
-#   - id: !remove audio_base_mixer
 media_player:
-  # - id: !remove media_player_silence
   - id: !extend ${display_player_id}
-    # media_pipeline:
-    #   speaker: audio_base_i2s_speaker
-    #   format: MP3  # Required for coderadio
-    #   sources:
-    #     - http_source
-    volume_min: 0.45
-    volume_max: 0.6
     on_mute:
       then:
-        - logger.log: "Sendspin Muted"
-        - switch.turn_off: audio_base_speaker_enable
         - lvgl.label.update: 
             id: lbl_playback_state
             text: "\U0000e04f"  # volume_off
     on_idle:
       then:
-        - logger.log: "Sendspin Idle"
-        - switch.turn_off: audio_base_speaker_enable
         - lvgl.label.update: 
             id: lbl_playback_state
             text: "\U0000ef71"  # stop
         - lvgl.animation.start: sendspin_art_hide
     on_pause:
       then:
-        - logger.log: "Sendspin Pause"
-        - switch.turn_off: audio_base_speaker_enable
         - lvgl.label.update: 
             id: lbl_playback_state
             text: "\U0000e1a2"  # pause
-    on_turn_off:
-      then:
-        - logger.log: "Sendspin Turn off"
-        - switch.turn_off: audio_base_speaker_enable
+    # on_turn_off:
+    #   then:
+    #     - logger.log: "Sendspin Turn off"
     on_unmute:
       then:
-        - logger.log: "Sendspin Unmuted"
-        - switch.turn_on: audio_base_speaker_enable
         - lvgl.label.update: 
             id: lbl_playback_state
             # FIXME: play/pause/stop accordingly
@@ -92,7 +61,6 @@ media_player:
     on_play:
       then:
         # FIXME: This is triggering every time I change volume and at other wrong times when it's already playing
-        - logger.log: "Sendspin Play"
         - if:
             condition:
               - media_player.is_muted: media_player_sendspin
@@ -108,8 +76,6 @@ media_player:
         - lvgl.animation.start: sendspin_art_show
     on_announcement:
       then:
-        - logger.log: "Sendspin Announcement"
-        - switch.turn_on: audio_base_speaker_enable
         - lvgl.label.update: 
             id: lbl_playback_state
             text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
@@ -153,9 +119,9 @@ media_player:
               - lvgl.label.update: 
                   id: lbl_playback_state
                   text: "\U0000ef71"  # stop
-    on_turn_on:
-      then:
-        - logger.log: "Sendspin Turn on"
+    # on_turn_on:
+    #   then:
+    #     - logger.log: "Sendspin Turn on"
     on_state:
       then:
         - if:
@@ -171,13 +137,6 @@ media_player:
             # FIXME: Run script to (maybe) update displayed state
         - lambda: |-  # Record new state se we can detect the next change properly
             id(media_player_sendspin_previous_state) = id(media_player_sendspin).state;
-        # - logger.log: "Sendspin state..."
-    # on_state:
-    #   then:
-    #     - logger.log:
-    #         format: "Sendspin state: %s"
-    #         args:
-    #           - !lambda id(sendspin_media_player).state
 
     
 font:
@@ -249,10 +208,10 @@ image:
     #   # with transition_finished so the next frame is released.
     #   - delay: 300ms
     #   - sendspin.image.transition_finished: sendspin_album_art
-    on_image_clear:
-      - logger.log: "Album art cleared"
-    on_image_error:
-      - logger.log: "Album art error"
+    # on_image_clear:
+    #   - logger.log: "Album art cleared"
+    # on_image_error:
+    #   - logger.log: "Album art error"
 
     # Start the fade 1s before the track boundary so the 2s cross-fade straddles it.
     display_offset: 1s
