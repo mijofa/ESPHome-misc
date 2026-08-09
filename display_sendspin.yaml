@@ -1,7 +1,7 @@
 substitutions:
-  display_button_id: atoms3r_display_button
-  display_lvgl_id: atoms3r_display_lvgl
-  display_player_id: media_player_sendspin
+  # display_button_id: atoms3r_display_button
+  # display_lvgl_id: atoms3r_display_lvgl
+  # display_player_id: media_player_sendspin
 
 binary_sensor:
   - id: !extend ${display_button_id}
