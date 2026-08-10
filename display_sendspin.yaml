@@ -9,61 +9,99 @@ esphome:
 globals:
   - type: double
     id: media_player_sendspin_previous_volume
-  - type: esphome::media_player::MediaPlayerState
-    id: media_player_sendspin_previous_state
+  # - type: esphome::media_player::MediaPlayerState
+  #   id: media_player_sendspin_previous_state
+
+script:
+  - id: display_player_state
+    mode: restart
+    then:
+      - if:
+          condition:
+            - media_player.is_on: ${display_player_id}
+          else:
+            - lvgl.label.update:
+                id: lbl_playback_state
+                text: "\U0000ef64"  # pending
+          then:
+            # FIXME: ESPHome really has no if/elif equivalent?
+            - if:
+                any:
+                  - media_player.is_idle: ${display_player_id}
+                then:
+                  - lvgl.label.update:
+                      id: lbl_playback_state
+                      text: "\U0000ef71"  # stop
+                  # I'm only stopping here because I don't want the future 'if' statements to also trigger
+                  - script.stop: display_player_state
+            - if:
+                any:
+                  - media_player.is_paused: ${display_player_id}
+                then:
+                  - lvgl.label.update:
+                      id: lbl_playback_state
+                      text: "\U0000e1a2"  # pause
+                  - script.stop: display_player_state
+            - if:
+                any:
+                  - media_player.is_muted: ${display_player_id}
+                then:
+                  - lvgl.label.update:
+                      id: lbl_playback_state
+                      text: "\U0000e04f"  # volume_off
+                  - script.stop: display_player_state
+            - if:
+                any:
+                  - media_player.is_announcing: ${display_player_id}
+                then:
+                  - lvgl.label.update:
+                      id: lbl_playback_state
+                      text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
+            - if:
+                any:
+                  - media_player.is_playing: ${display_player_id}
+                then:
+                  - lvgl.label.update:
+                      id: lbl_playback_state
+                      text: "\U0000e1c4"  # play_arrow
+  - id: display_player_temp_state
+    # I only really have this as a script to get the delayed removal.
+    # By using mode:restart, the timeout will reset whenever the script is rerun
+    mode: restart
+    then:
+      - lvgl.page.show: page_temp_state
+      - delay: 2s
+      - lvgl.page.show: page_playback_state
 
 media_player:
   - id: !extend ${display_player_id}
+    on_state:
+      then:
+        - script.execute: display_player_state
+        # - if:
+        #     condition:
+        #       - lambda: |-  # State has actually changed
+        #           return id(media_player_sendspin_previous_state) != id(media_player_sendspin).state;
+        #     then:
+        #       - lambda: |-  # FIXME: Can logger.log be used for this properly?
+        #           ESP_LOGD("media_player",
+        #                    "Confirmed media player state changed: %s -> %s",
+        #                    media_player_state_to_string(id(media_player_sendspin_previous_state)),
+        #                    media_player_state_to_string(id(media_player_sendspin).state));
+        #     # FIXME: Run script to (maybe) update displayed state
+        # - lambda: |-  # Record new state se we can detect the next change properly
+        #     id(media_player_sendspin_previous_state) = id(media_player_sendspin).state;
     on_mute:
       then:
-        - lvgl.label.update: 
-            id: lbl_playback_state
-            text: "\U0000e04f"  # volume_off
-    on_idle:
-      then:
-        - lvgl.label.update: 
-            id: lbl_playback_state
-            text: "\U0000ef71"  # stop
-        - lvgl.animation.start: sendspin_art_hide
-    on_pause:
-      then:
-        - lvgl.label.update: 
-            id: lbl_playback_state
-            text: "\U0000e1a2"  # pause
-    # on_turn_off:
-    #   then:
-    #     - logger.log: "Sendspin Turn off"
+        - script.execute: display_player_state
     on_unmute:
       then:
-        - lvgl.label.update: 
+        - lvgl.label.update:
             id: lbl_temp_state
             # FIXME: play/pause/stop accordingly
             # text: "\U0000e050"  # volume_up
             text: "\U0000e04e"  # volume_mute  # NOTE: Looks less like mute than volume_off does
-        - lvgl.page.show: page_temp_state
-        - delay: 2s
-        - lvgl.page.show: page_playback_state
-    on_play:
-      then:
-        # FIXME: This is triggering every time I change volume and at other wrong times when it's already playing
-        - if:
-            condition:
-              - media_player.is_muted: media_player_sendspin
-            then:
-              - lvgl.label.update: 
-                  id: lbl_playback_state
-                  text: "\U0000e04f"  # volume_off
-            else:
-              - switch.turn_on: audio_base_speaker_enable
-              - lvgl.label.update: 
-                  id: lbl_playback_state
-                  text: "\U0000e1c4"  # play_arrow
-        - lvgl.animation.start: sendspin_art_show
-    on_announcement:
-      then:
-        - lvgl.label.update: 
-            id: lbl_playback_state
-            text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
+        - script.execute: display_player_temp_state
     on_volume:
       then:
         # FIXME: Show vol+/- icon for a few seconds
@@ -72,38 +110,51 @@ media_player:
               - lambda: |-  # Volume down
                   return id(media_player_sendspin_previous_volume) > id(media_player_sendspin).volume;
             then:
-              - lvgl.label.update: 
+              - lvgl.label.update:
                   id: lbl_temp_state
                   text: "\U0000e04d"  # volume_down
             else:  # Assume volume up
-              - lvgl.label.update: 
+              - lvgl.label.update:
                   id: lbl_temp_state
                   text: "\U0000e050"  # volume_up
         - lambda: |-
             id(media_player_sendspin_previous_volume) = id(media_player_sendspin).volume;
-        - lvgl.page.show: page_temp_state
-        - delay: 2s
-        - lvgl.page.show: page_playback_state
+        - script.execute: display_player_temp_state
+    # on_idle:
+    #   then:
+    #     - lvgl.animation.start: sendspin_art_hide
+    # on_pause:
+    #   then:
+    #     - script.execute: display_player_state
+    # on_turn_off:
+    #   then:
+    #     - logger.log: "Sendspin Turn off"
+    # on_play:
+    #   then:
+    #     # FIXME: This is triggering every time I change volume and at other wrong times when it's already playing
+    #     - if:
+    #         condition:
+    #           - media_player.is_muted: media_player_sendspin
+    #         then:
+    #           - lvgl.label.update:
+    #               id: lbl_playback_state
+    #               text: "\U0000e04f"  # volume_off
+    #         else:
+    #           - switch.turn_on: audio_base_speaker_enable
+    #           - lvgl.label.update:
+    #               id: lbl_playback_state
+    #               text: "\U0000e1c4"  # play_arrow
+    #     - lvgl.animation.start: sendspin_art_show
+    # on_announcement:
+    #   then:
+    #     - lvgl.label.update:
+    #         id: lbl_playback_state
+    #         text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
     # on_turn_on:
     #   then:
     #     - logger.log: "Sendspin Turn on"
-    on_state:
-      then:
-        - if:
-            condition:
-              - lambda: |-  # State has actually changed
-                  return id(media_player_sendspin_previous_state) != id(media_player_sendspin).state;
-            then:
-              - lambda: |-  # FIXME: Can logger.log be used for this properly?
-                  ESP_LOGD("media_player",
-                           "Confirmed media player state changed: %s -> %s",
-                           media_player_state_to_string(id(media_player_sendspin_previous_state)),
-                           media_player_state_to_string(id(media_player_sendspin).state));
-            # FIXME: Run script to (maybe) update displayed state
-        - lambda: |-  # Record new state se we can detect the next change properly
-            id(media_player_sendspin_previous_state) = id(media_player_sendspin).state;
 
-    
+
 font:
 #   - id: font_roboto
 #     size: 24
@@ -118,7 +169,7 @@ font:
   #        I considered Google's 'Two Tone' symbols font, but that uses otf, which ESPHome does not support.
   #        I think the only viable solution here is to throw away the 'font' method and use svg or png instead.
   - id: material_symbols
-    file: 
+    file:
       type: gfonts
       family: Material Symbols
     size: 96
@@ -257,7 +308,7 @@ lvgl:
               blend_mode: DIFFERENCE
               text_color: white
               text: "\U0000ef64"  # pending
-  
+
       - id: page_temp_state
         bg_opa: TRANSP
         skip: true
