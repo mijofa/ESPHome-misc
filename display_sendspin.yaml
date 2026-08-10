@@ -22,9 +22,9 @@ script:
           condition:
             - media_player.is_off: ${display_player_id}
           then:
-            - lvgl.label.update:
-                id: lbl_playback_state
-                text: "\U0000ef64"  # pending
+            - lvgl.image.update:
+                id: widget_playback_state
+                src: image_state_pending
             - lvgl.widget.hide: lvgl_widget_sendspin_art
             # - lambda: "id(media_player_sendspin_state_display_art) = false;"
           else:
@@ -33,9 +33,9 @@ script:
                 any:
                   - media_player.is_paused: ${display_player_id}
                 then:
-                  - lvgl.label.update:
-                      id: lbl_playback_state
-                      text: "\U0000e1a2"  # pause
+                  - lvgl.image.update:
+                      id: widget_playback_state
+                      src: image_state_paused
                   - lvgl.widget.show: lvgl_widget_sendspin_art
                   # - lambda: "id(media_player_sendspin_state_display_art) = true;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
@@ -43,9 +43,9 @@ script:
                 any:
                   - media_player.is_idle: ${display_player_id}
                 then:
-                  - lvgl.label.update:
-                      id: lbl_playback_state
-                      text: "\U0000ef71"  # stop
+                  - lvgl.image.update:
+                      id: widget_playback_state
+                      src: image_state_stopped
                   - lvgl.widget.hide: lvgl_widget_sendspin_art
                   # - lambda: "id(media_player_sendspin_state_display_art) = false;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
@@ -53,9 +53,9 @@ script:
                 any:
                   - media_player.is_muted: ${display_player_id}
                 then:
-                  - lvgl.label.update:
-                      id: lbl_playback_state
-                      text: "\U0000e04f"  # volume_off
+                  - lvgl.image.update:
+                      id: widget_playback_state
+                      src: image_volume_mute
                   - lvgl.widget.show: lvgl_widget_sendspin_art
                   # - lambda: "id(media_player_sendspin_state_display_art) = true;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
@@ -63,9 +63,9 @@ script:
                 any:
                   - media_player.is_announcing: ${display_player_id}
                 then:
-                  - lvgl.label.update:
-                      id: lbl_playback_state
-                      text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
+                  - lvgl.image.update:
+                      id: widget_playback_state
+                      src: image_state_announcing
                   # FIXME: Should be shown?
                   - lvgl.widget.hide: lvgl_widget_sendspin_art
                   # - lambda: "id(media_player_sendspin_state_display_art) = false;"
@@ -74,9 +74,9 @@ script:
                 any:
                   - media_player.is_playing: ${display_player_id}
                 then:
-                  - lvgl.label.update:
-                      id: lbl_playback_state
-                      text: "\U0000e1c4"  # play_arrow
+                  - lvgl.image.update:
+                      id: widget_playback_state
+                      src: image_state_playing
                   - lvgl.widget.show: lvgl_widget_sendspin_art
                   # - lambda: "id(media_player_sendspin_state_display_art) = true;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
@@ -85,7 +85,7 @@ script:
     # I only really have this as a script to get the delayed removal.
     # By using mode:restart, the timeout will reset whenever the script is rerun
     mode: restart
-    # FIXME: Make this take an argument and update the lbl accordingly
+    # FIXME: Make this take an argument and update the widget accordingly
     then:
       - lvgl.page.show: page_temp_state
       - delay: 2s
@@ -127,11 +127,9 @@ media_player:
         - script.execute: display_player_state
     on_unmute:
       then:
-        - lvgl.label.update:
-            id: lbl_temp_state
-            # FIXME: play/pause/stop accordingly
-            # text: "\U0000e050"  # volume_up
-            text: "\U0000e04e"  # volume_mute  # NOTE: Looks less like mute than volume_off does
+        - lvgl.image.update:
+            id: widget_temp_state
+            src: image_volume_unmute
         - script.execute: display_player_temp_state
     on_volume:
       then:
@@ -141,13 +139,13 @@ media_player:
               - lambda: |-  # Volume down
                   return id(media_player_sendspin_previous_volume) > id(media_player_sendspin).volume;
             then:
-              - lvgl.label.update:
-                  id: lbl_temp_state
-                  text: "\U0000e04d"  # volume_down
+              - lvgl.image.update:
+                  id: widget_temp_state
+                  src: image_volume_down
             else:  # Assume volume up
-              - lvgl.label.update:
-                  id: lbl_temp_state
-                  text: "\U0000e050"  # volume_up
+              - lvgl.image.update:
+                  id: widget_temp_state
+                  src: image_volume_up
         - lambda: |-
             id(media_player_sendspin_previous_volume) = id(media_player_sendspin).volume;
         - script.execute: display_player_temp_state
@@ -163,52 +161,6 @@ media_player:
     #   then:
     # on_turn_on:
     #   then:
-
-
-font:
-  # FIXME: Consider emoji instead?  https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/issues/125
-  #        That would at least render similarly in the editor
-  # FIXME: These can't really be recognised in front of the sendspin cover art.
-  #        I want a drop-shadow/cell-shading/border to resolve that,
-  #        but that's not possible with ESPHome's font rendnerer.
-  #        I considered Google's 'Two Tone' symbols font, but that uses otf, which ESPHome does not support.
-  #        I think the only viable solution here is to throw away the 'font' method and use svg or png instead.
-  - id: material_symbols
-    file:
-      type: gfonts
-      family: Material Symbols
-    size: 96
-    glyphs:
-      # Loading indicators?
-      # - "\U0000ea5c"  # hourglass_bottom
-      # - "\U0000ef53"  # hourglass_disabled
-      # - "\U0000e88b"  # hourglass_empty
-      # - "\U0000e88c"  # hourglass_full
-      - "\U0000ef64"  # pending
-      # # Playback state
-      # - "\U0000e037"  # play_arrow
-      # - "\U0000e034"  # pause
-      # - "\U0000e047"  # stop
-      # Playback state, with circles
-      - "\U0000e1c4"  # play_circle
-      - "\U0000e1a2"  # pause_circle
-      - "\U0000ef71"  # stop_circle
-      # # Playback state, with explicitly outlined circles
-      # - "\U0000e039"  # play_circle_outline
-      # - "\U0000e036"  # pause_circle_outline
-      # # Playback state, with explicitly filled circles
-      # - "\U0000e038"  # play_circle_filled
-      # - "\U0000e035"  # pause_circle_filled
-      # Volume state
-      - "\U0000e050"  # volume_up
-      - "\U0000e04f"  # volume_off
-      - "\U0000e04e"  # volume_mute
-      - "\U0000e04d"  # volume_down
-      # # Announcement indicator?
-      - "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
-      # - "\U0000e85a"  # announcement  [Looks like an important speech bubble]
-      # - "\U0000e8c8"  # settings_voice
-      # - "\U0000e39f"  # assistant
 
 image:
   - platform: sendspin
@@ -248,6 +200,60 @@ image:
           id: incoming_art
           src: image_sendspin_art_current
       - lvgl.animation.start: sendspin_art_crossfade
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_state_pending
+    file: mdi:loading
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_state_playing
+    file: mdi:play-circle-outline
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_state_paused
+    file: mdi:pause-circle-outline
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_state_stopped
+    file: mdi:stop-circle-outline
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_state_announcing
+    file: mdi:bullhorn
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_volume_up
+    file: mdi:volume-plus
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_volume_mute
+    file: mdi:volume-off
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_volume_unmute
+    file: mdi:volume-mute
+  - platform: file
+    resize: 96x96
+    type: GRAYSCALE
+    transparency: chroma_key
+    id: image_volume_down
+    file: mdi:volume-minus
 
 lvgl:
   - id: !extend ${display_lvgl_id}
@@ -303,26 +309,23 @@ lvgl:
       - id: page_playback_state
         bg_opa: TRANSP
         widgets:
-          - label:
-              # ref: https://esphome.io/cookbook/lvgl/#battery-status-icon
-              id: lbl_playback_state
+          - image:
+              id: widget_playback_state
               align: CENTER
-              text_font: material_symbols
-              # LVGL doesn't support a giving the text an outline, sadly.
-              # I tried abusing both shadow & drop_shadow into something, but it wasn't viable
-              # this blend mode has a somewhat useful effect of effectively inverting the underlaying colour
-              blend_mode: DIFFERENCE
-              text_color: white
-              text: "\U0000ef64"  # pending
-
+              # # LVGL doesn't support a giving the text an outline, sadly.
+              # # I tried abusing both shadow & drop_shadow into something, but it wasn't viable
+              # # this blend mode has a somewhat useful effect of effectively inverting the underlaying colour
+              # blend_mode: DIFFERENCE
+              src: image_state_pending
       - id: page_temp_state
         bg_opa: TRANSP
         skip: true
         widgets:
-          - label:
-              id: lbl_temp_state
+          - image:
+              id: widget_temp_state
               align: CENTER
-              text_font: material_symbols
-              blend_mode: DIFFERENCE
-              text_color: white
-              text: "\U0000ef64"
+              # # LVGL doesn't support a giving the text an outline, sadly.
+              # # I tried abusing both shadow & drop_shadow into something, but it wasn't viable
+              # # this blend mode has a somewhat useful effect of effectively inverting the underlaying colour
+              # blend_mode: DIFFERENCE
+              src: image_state_pending  # Should never appear as it should be updated before we ever show this page
