@@ -162,36 +162,59 @@ media_player:
         - media_source_sendspin
     on_mute:
       then:
-        # - logger.log: "Sendspin Muted"
+        - logger.log: "Sendspin Muted"
+        - script.execute: audio_base_player_enable_speaker
         - switch.turn_off: audio_base_speaker_enable
     on_idle:
       then:
-        # - logger.log: "Sendspin Idle"
+        - logger.log: "Sendspin Idle"
+        - script.execute: audio_base_player_enable_speaker
         - switch.turn_off: audio_base_speaker_enable
     on_pause:
       then:
-        # - logger.log: "Sendspin Pause"
+        - logger.log: "Sendspin Pause"
+        - script.execute: audio_base_player_enable_speaker
         - switch.turn_off: audio_base_speaker_enable
     on_turn_off:
       then:
-        # - logger.log: "Sendspin Turn off"
+        - logger.log: "Sendspin Turn off"
+        - script.execute: audio_base_player_enable_speaker
         - switch.turn_off: audio_base_speaker_enable
     on_unmute:
       then:
-        # - logger.log: "Sendspin Unmuted"
+        - logger.log: "Sendspin Unmuted"
+        - script.execute: audio_base_player_enable_speaker
         - switch.turn_on: audio_base_speaker_enable
     on_play:
       then:
-        # - logger.log: "Sendspin Play"
+        - logger.log: "Sendspin Play"
+        - script.execute: audio_base_player_enable_speaker
         - switch.turn_on: audio_base_speaker_enable
     on_announcement:
       then:
-        # - logger.log: "Sendspin Announcement"
+        - logger.log: "Sendspin Announcement"
+        - script.execute: audio_base_player_enable_speaker
         - switch.turn_on: audio_base_speaker_enable
     # FIXME: Can I use on_state with a simple on/off if statement?
-    # on_state:
-    #   then:
+    on_state:
+      then:
+        - logger.log: "Sendspin state..."
+        - script.execute: audio_base_player_enable_speaker
     #     - logger.log:
     #         format: "Sendspin state: %s"
     #         args:
     #           - !lambda id(media_player_sendspin).state
+
+
+script:
+  - id: audio_base_player_enable_speaker
+    mode: restart
+    then:
+      # - lambda: |-  # FIXME: I've not been able to make this work with ESPHome's logger.log
+      #     ESP_LOGD("media_player",
+      #              "Media player state: %s",
+      #              media_player_state_to_string(id(media_player_sendspin).state));
+      - logger.log:
+          format: "Media Player state: %s"
+          args:
+            - 'media_player_state_to_string(id(media_player_sendspin).state)'
