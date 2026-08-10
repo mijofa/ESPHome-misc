@@ -108,24 +108,32 @@ lvgl:
                 - logger.log: "LVGL burn-in prvention"
                 - light.turn_off: atoms3r_display_backlight
                 - delay: 2s  # Wait for the backlight to fade off
-                # Do some burn-in prevention screensaver stuff when idle.
-                # ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
-                #
-                # Exercise the pixels for ~30s, to (theoretically) undo any burn-in already caused
-                # FIXME: I suspect this needs to be a lot longer to be useful
-                - lvgl.pause:
-                    id: atoms3r_display_lvgl
-                    show_snow: true
-                - delay: 30s
-                # Turn all the pixels off, to (theoretically) avoid causing any more burn-in
-                - lvgl.resume:
-                    id: atoms3r_display_lvgl
-                - lvgl.update:
-                    id: atoms3r_display_lvgl
-                    top_layer:
-                      # FIXME: Benefit in using the colour hex codes?
-                      bg_color: BLACK
-                      bg_opa: COVER
+                - if:
+                    condition:  # Ensure the backlight is still off
+                      light.is_off: atoms3r_display_backlight
+                    then:
+                      # Do some burn-in prevention screensaver stuff when idle.
+                      # ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
+                      #
+                      # Exercise the pixels for ~30s, to (theoretically) undo any burn-in already caused
+                      # FIXME: I suspect this needs to be a lot longer to be useful
+                      - lvgl.pause:
+                          id: atoms3r_display_lvgl
+                          show_snow: true
+                      - delay: 30s
+                      # Turn all the pixels off, to (theoretically) avoid causing any more burn-in
+                      - lvgl.resume:
+                          id: atoms3r_display_lvgl
+                      - if:
+                          condition:  # Ensure the backlight is still off
+                            light.is_off: atoms3r_display_backlight
+                          then:
+                            - lvgl.update:
+                                id: atoms3r_display_lvgl
+                                top_layer:
+                                  # FIXME: Benefit in using the colour hex codes?
+                                  bg_color: BLACK
+                                  bg_opa: COVER
     on_resume:
       # Note that on_resume is not the inverse of on_idle, it's the inverse of on_pause.
       # But I am explicitly triggering pause on_idle and triggering resume as I trigger the idle reset to get a similar effect

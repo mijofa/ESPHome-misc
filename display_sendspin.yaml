@@ -263,6 +263,8 @@ lvgl:
               from: 0%
               to: 100%
     bottom_layer:
+      bg_color: BLACK
+      bg_opa: COVER
       widgets:
         - container:
             id: lvgl_widget_sendspin_art
@@ -280,6 +282,7 @@ lvgl:
 
     pages:
       - id: page_playback_state
+        bg_opa: TRANSP
         widgets:
           - label:
               # ref: https://esphome.io/cookbook/lvgl/#battery-status-icon
@@ -294,6 +297,7 @@ lvgl:
               text: "\U0000ef64"  # pending
   
       - id: page_temp_state
+        bg_opa: TRANSP
         skip: true
         widgets:
           - label:
