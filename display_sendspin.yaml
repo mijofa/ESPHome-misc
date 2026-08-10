@@ -36,31 +36,13 @@ media_player:
     on_unmute:
       then:
         - lvgl.label.update: 
-            id: lbl_playback_state
+            id: lbl_temp_state
             # FIXME: play/pause/stop accordingly
-            text: "\U0000e050"  # volume_up
+            # text: "\U0000e050"  # volume_up
+            text: "\U0000e04e"  # volume_mute  # NOTE: Looks less like mute than volume_off does
+        - lvgl.page.show: page_temp_state
         - delay: 2s
-        - if:
-            condition:
-              - media_player.is_playing: media_player_sendspin
-            then:
-              - lvgl.label.update: 
-                  id: lbl_playback_state
-                  text: "\U0000e1c4"  # play_arrow
-        - if:
-            condition:
-              - media_player.is_paused: media_player_sendspin
-            then:
-              - lvgl.label.update: 
-                  id: lbl_playback_state
-                  text: "\U0000e1a2"  # pause
-        - if:
-            condition:
-              - media_player.is_idle: media_player_sendspin
-            then:
-              - lvgl.label.update: 
-                  id: lbl_playback_state
-                  text: "\U0000ef71"  # stop
+        - lvgl.page.show: page_playback_state
     on_play:
       then:
         # FIXME: This is triggering every time I change volume and at other wrong times when it's already playing
@@ -91,37 +73,17 @@ media_player:
                   return id(media_player_sendspin_previous_volume) > id(media_player_sendspin).volume;
             then:
               - lvgl.label.update: 
-                  id: lbl_playback_state
+                  id: lbl_temp_state
                   text: "\U0000e04d"  # volume_down
             else:  # Assume volume up
               - lvgl.label.update: 
-                  id: lbl_playback_state
+                  id: lbl_temp_state
                   text: "\U0000e050"  # volume_up
         - lambda: |-
             id(media_player_sendspin_previous_volume) = id(media_player_sendspin).volume;
-
+        - lvgl.page.show: page_temp_state
         - delay: 2s
-        - if:
-            condition:
-              - media_player.is_playing: media_player_sendspin
-            then:
-              - lvgl.label.update: 
-                  id: lbl_playback_state
-                  text: "\U0000e1c4"  # play_arrow
-        - if:
-            condition:
-              - media_player.is_paused: media_player_sendspin
-            then:
-              - lvgl.label.update: 
-                  id: lbl_playback_state
-                  text: "\U0000e1a2"  # pause
-        - if:
-            condition:
-              - media_player.is_idle: media_player_sendspin
-            then:
-              - lvgl.label.update: 
-                  id: lbl_playback_state
-                  text: "\U0000ef71"  # stop
+        - lvgl.page.show: page_playback_state
     # on_turn_on:
     #   then:
     #     - logger.log: "Sendspin Turn on"
