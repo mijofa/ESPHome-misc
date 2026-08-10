@@ -68,6 +68,17 @@ switch:
     # We deal with this internally, Home Assistant doesn't need to know about it
     internal: true
     restore_mode: ALWAYS_OFF
+    on_turn_off:
+      then:
+        - if:
+            condition:
+              - media_player.is_playing: media_player_sendspin
+            then:
+              - media_player.mute: media_player_sendspin
+    on_turn_on:
+      then:
+        - media_player.unmute: media_player_sendspin
+
 
 ### Audio DAC for volume control
 # This DAC is what's causing the loud pop when silent for a bit

@@ -58,10 +58,17 @@ light:
   - platform: monochromatic
     id: atoms3r_display_backlight
     output: atoms3r_lp5562_white
-    name: "Display Backlight"  # Only setting this to avoid confusion when I override "internal: false"
     internal: true
     # FIXME: Should this be ALWAYS_ON?
     restore_mode: ALWAYS_OFF
+    on_turn_on:
+      then:
+        - lvgl.resume:
+            id: atoms3r_display_lvgl
+    on_turn_off:
+      then:
+        - delay: 2s  # Wait for the backlight to fade off
+        - script.execute: atoms3r_display_burnin_prevention
 
 ### Display
 display:
@@ -103,37 +110,9 @@ lvgl:
         then:
           - if:
               condition:
-                - light.is_on: atoms3r_display_backlight
+                light.is_on: atoms3r_display_backlight
               then:
-                - logger.log: "LVGL burn-in prvention"
-                - light.turn_off: atoms3r_display_backlight
-                - delay: 2s  # Wait for the backlight to fade off
-                - if:
-                    condition:  # Ensure the backlight is still off
-                      light.is_off: atoms3r_display_backlight
-                    then:
-                      # Do some burn-in prevention screensaver stuff when idle.
-                      # ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
-                      #
-                      # Exercise the pixels for ~30s, to (theoretically) undo any burn-in already caused
-                      # FIXME: I suspect this needs to be a lot longer to be useful
-                      - lvgl.pause:
-                          id: atoms3r_display_lvgl
-                          show_snow: true
-                      - delay: 30s
-                      # Turn all the pixels off, to (theoretically) avoid causing any more burn-in
-                      - lvgl.resume:
-                          id: atoms3r_display_lvgl
-                      - if:
-                          condition:  # Ensure the backlight is still off
-                            light.is_off: atoms3r_display_backlight
-                          then:
-                            - lvgl.update:
-                                id: atoms3r_display_lvgl
-                                top_layer:
-                                  # FIXME: Benefit in using the colour hex codes?
-                                  bg_color: BLACK
-                                  bg_opa: COVER
+              - light.turn_off: atoms3r_display_backlight
     on_resume:
       # Note that on_resume is not the inverse of on_idle, it's the inverse of on_pause.
       # But I am explicitly triggering pause on_idle and triggering resume as I trigger the idle reset to get a similar effect
@@ -143,6 +122,37 @@ lvgl:
             id: atoms3r_display_lvgl
             top_layer:
               bg_opa: TRANSP
+### Screensaver / Burnin prevention
+script:
+  - id: atoms3r_display_burnin_prevention
+    # Do some burn-in prevention screensaver stuff when idle.
+    # ref: https://esphome.io/cookbook/lvgl/#prevent-burn-in-of-lcd
+    mode: restart
+    then:
+      - if:
+          condition:  # Ensure the backlight is off so that no one actually sees this happening
+            light.is_off: atoms3r_display_backlight
+          then:
+            # Exercise the pixels for ~30s, to (theoretically) undo any burn-in already caused
+            # FIXME: I suspect this needs to be a lot longer to be useful
+            - lvgl.pause:
+                id: atoms3r_display_lvgl
+                show_snow: true
+            - delay: 30s
+            # Resume LVGL and turn all the pixels off, to (theoretically) avoid causing any more burn-in
+            - lvgl.resume:
+                id: atoms3r_display_lvgl
+            - if:
+                condition:  # Ensure the backlight is still off
+                  light.is_off: atoms3r_display_backlight
+                then:
+                  - lvgl.update:
+                      id: atoms3r_display_lvgl
+                      # FIXME: What if I'm actually using the top_layer?
+                      top_layer:
+                        # FIXME: Benefit in using the colour hex codes?
+                        bg_color: BLACK
+                        bg_opa: COVER
 
 ### Display wake/sleep handler
 button:
