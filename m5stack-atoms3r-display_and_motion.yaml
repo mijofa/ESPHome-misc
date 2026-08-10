@@ -48,6 +48,7 @@ lp5562:
   id: atoms3r_lp5562
   i2c_id: atoms3r_i2c_bus
   use_internal_clk: true
+  # FIXME: Why this magic number? I know it came from upstream, but what does it mean?
   white_current: 17.5
 output:
   - platform: lp5562
