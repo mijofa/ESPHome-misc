@@ -58,6 +58,7 @@ light:
   - platform: monochromatic
     id: atoms3r_display_backlight
     output: atoms3r_lp5562_white
+    default_transition_length: 0.5s
     internal: true
     # FIXME: Should this be ALWAYS_ON?
     restore_mode: ALWAYS_OFF
