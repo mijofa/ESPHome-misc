@@ -2,6 +2,9 @@ substitutions:
   # display_lvgl_id: atoms3r_display_lvgl
   # display_player_id: media_player_sendspin
 
+esphome:
+  on_boot:
+    - lvgl.page.show: page_playback_state
 
 globals:
   - type: double
@@ -259,29 +262,44 @@ lvgl:
             opa:
               from: 0%
               to: 100%
-    widgets:
-      - container:
-          id: lvgl_widget_sendspin_art
-          # Hide by default, don't become visible until the show animation plays
-          opa: 0%
-          widgets:
-            # Cross-fade pair: the bottom widget always shows the current artwork; the top widget is
-            # pointed at the outgoing frame on each display event and faded out over it.
-            - image:
-                id: incoming_art
-                src: image_sendspin_art_current
-            - image:
-                id: outgoing_art
-                src: image_sendspin_art_current
-      - label:
-          # ref: https://esphome.io/cookbook/lvgl/#battery-status-icon
-          id: lbl_playback_state
-          align: CENTER
-          text_font: material_symbols
-          # LVGL doesn't support a giving the text an outline, sadly.
-          # I tried abusing both shadow & drop_shadow into something, but it wasn't viable
-          # this blend mode has a somewhat useful effect of effectively inverting the underlaying colour
-          blend_mode: DIFFERENCE
-          text_color: white
-          text: "\U0000ef64"  # pending
+    bottom_layer:
+      widgets:
+        - container:
+            id: lvgl_widget_sendspin_art
+            # Hide by default, don't become visible until the show animation plays
+            opa: 0%
+            widgets:
+              # Cross-fade pair: the bottom widget always shows the current artwork; the top widget is
+              # pointed at the outgoing frame on each display event and faded out over it.
+              - image:
+                  id: incoming_art
+                  src: image_sendspin_art_current
+              - image:
+                  id: outgoing_art
+                  src: image_sendspin_art_current
 
+    pages:
+      - id: page_playback_state
+        widgets:
+          - label:
+              # ref: https://esphome.io/cookbook/lvgl/#battery-status-icon
+              id: lbl_playback_state
+              align: CENTER
+              text_font: material_symbols
+              # LVGL doesn't support a giving the text an outline, sadly.
+              # I tried abusing both shadow & drop_shadow into something, but it wasn't viable
+              # this blend mode has a somewhat useful effect of effectively inverting the underlaying colour
+              blend_mode: DIFFERENCE
+              text_color: white
+              text: "\U0000ef64"  # pending
+  
+      - id: page_temp_state
+        skip: true
+        widgets:
+          - label:
+              id: lbl_temp_state
+              align: CENTER
+              text_font: material_symbols
+              blend_mode: DIFFERENCE
+              text_color: white
+              text: "\U0000ef64"
