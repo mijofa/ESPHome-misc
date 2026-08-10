@@ -9,6 +9,8 @@ esphome:
 globals:
   - type: double
     id: media_player_sendspin_previous_volume
+  # - type: bool
+  #   id: media_player_sendspin_state_display_art
   # - type: esphome::media_player::MediaPlayerState
   #   id: media_player_sendspin_previous_state
 
@@ -23,6 +25,8 @@ script:
             - lvgl.label.update:
                 id: lbl_playback_state
                 text: "\U0000ef64"  # pending
+            - lvgl.widget.hide: lvgl_widget_sendspin_art
+            # - lambda: "id(media_player_sendspin_state_display_art) = false;"
           else:
             # FIXME: ESPHome really has no if/elif equivalent?
             - if:
@@ -32,6 +36,8 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000e1a2"  # pause
+                  - lvgl.widget.show: lvgl_widget_sendspin_art
+                  # - lambda: "id(media_player_sendspin_state_display_art) = true;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
             - if:
                 any:
@@ -40,6 +46,8 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000ef71"  # stop
+                  - lvgl.widget.hide: lvgl_widget_sendspin_art
+                  # - lambda: "id(media_player_sendspin_state_display_art) = false;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
             - if:
                 any:
@@ -48,6 +56,8 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000e04f"  # volume_off
+                  - lvgl.widget.show: lvgl_widget_sendspin_art
+                  # - lambda: "id(media_player_sendspin_state_display_art) = true;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
             - if:
                 any:
@@ -56,6 +66,9 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
+                  # FIXME: Should be shown?
+                  - lvgl.widget.hide: lvgl_widget_sendspin_art
+                  # - lambda: "id(media_player_sendspin_state_display_art) = false;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
             - if:
                 any:
@@ -64,16 +77,32 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000e1c4"  # play_arrow
+                  - lvgl.widget.show: lvgl_widget_sendspin_art
+                  # - lambda: "id(media_player_sendspin_state_display_art) = true;"
                   - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
             # FIXME: Other?
   - id: display_player_temp_state
     # I only really have this as a script to get the delayed removal.
     # By using mode:restart, the timeout will reset whenever the script is rerun
     mode: restart
+    # FIXME: Make this take an argument and update the lbl accordingly
     then:
       - lvgl.page.show: page_temp_state
       - delay: 2s
       - lvgl.page.show: page_playback_state
+  # - id: display_maybe_hide_sendspin_art
+  #   mode: restart
+  #   then:
+  #     # FIXME This needs to only run when the state **changes** from a hidden to shown state.
+  #     #       Otherwise the transition will just repeat even if the widget is already shown
+  #     - if:
+  #         condition:
+  #           - lambda: |-  # State has actually changed
+  #               return id(media_player_sendspin_state_display_art);
+  #         then:
+  #           - lvgl.animation.start: sendspin_art_show
+  #         else:
+  #           - lvgl.animation.start: sendspin_art_hide
 
 media_player:
   - id: !extend ${display_player_id}
@@ -261,30 +290,31 @@ lvgl:
               to: 0%
         on_stop:
           - sendspin.image.transition_finished: image_sendspin_art
-      # Fades the whole sendspin container out
-      - id: sendspin_art_hide
-        duration: 1s
-        widgets:
-          - id: lvgl_widget_sendspin_art
-            opa:
-              from: 100%
-              to: 0%
-      # Fades the whole sendspin container in
-      - id: sendspin_art_show
-        duration: 1s
-        widgets:
-          - id: lvgl_widget_sendspin_art
-            opa:
-              from: 0%
-              to: 100%
+      # # Fades the whole sendspin container out
+      # - id: sendspin_art_hide
+      #   duration: 1s
+      #   widgets:
+      #     - id: lvgl_widget_sendspin_art
+      #       opa:
+      #         from: 100%
+      #         to: 0%
+      # # Fades the whole sendspin container in
+      # - id: sendspin_art_show
+      #   duration: 1s
+      #   widgets:
+      #     - id: lvgl_widget_sendspin_art
+      #       opa:
+      #         from: 0%
+      #         to: 100%
     bottom_layer:
       bg_color: BLACK
       bg_opa: COVER
       widgets:
         - container:
             id: lvgl_widget_sendspin_art
-            # Hide by default, don't become visible until the show animation plays
-            opa: 0%
+            # # Hide by default, don't become visible until playback state says to
+            # hidden: true
+            # opa: 0%
             widgets:
               # Cross-fade pair: the bottom widget always shows the current artwork; the top widget is
               # pointed at the outgoing frame on each display event and faded out over it.
