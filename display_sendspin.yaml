@@ -18,22 +18,13 @@ script:
     then:
       - if:
           condition:
-            - media_player.is_on: ${display_player_id}
-          else:
+            - media_player.is_off: ${display_player_id}
+          then:
             - lvgl.label.update:
                 id: lbl_playback_state
                 text: "\U0000ef64"  # pending
-          then:
+          else:
             # FIXME: ESPHome really has no if/elif equivalent?
-            - if:
-                any:
-                  - media_player.is_idle: ${display_player_id}
-                then:
-                  - lvgl.label.update:
-                      id: lbl_playback_state
-                      text: "\U0000ef71"  # stop
-                  # I'm only stopping here because I don't want the future 'if' statements to also trigger
-                  - script.stop: display_player_state
             - if:
                 any:
                   - media_player.is_paused: ${display_player_id}
@@ -41,7 +32,15 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000e1a2"  # pause
-                  - script.stop: display_player_state
+                  - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
+            - if:
+                any:
+                  - media_player.is_idle: ${display_player_id}
+                then:
+                  - lvgl.label.update:
+                      id: lbl_playback_state
+                      text: "\U0000ef71"  # stop
+                  - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
             - if:
                 any:
                   - media_player.is_muted: ${display_player_id}
@@ -49,7 +48,7 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000e04f"  # volume_off
-                  - script.stop: display_player_state
+                  - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
             - if:
                 any:
                   - media_player.is_announcing: ${display_player_id}
@@ -57,6 +56,7 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
+                  - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
             - if:
                 any:
                   - media_player.is_playing: ${display_player_id}
@@ -64,6 +64,8 @@ script:
                   - lvgl.label.update:
                       id: lbl_playback_state
                       text: "\U0000e1c4"  # play_arrow
+                  - script.stop: display_player_state  # Stop the script because we can't have 'elif' below
+            # FIXME: Other?
   - id: display_player_temp_state
     # I only really have this as a script to get the delayed removal.
     # By using mode:restart, the timeout will reset whenever the script is rerun
