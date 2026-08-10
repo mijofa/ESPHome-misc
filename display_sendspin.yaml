@@ -200,60 +200,61 @@ image:
           id: incoming_art
           src: image_sendspin_art_current
       - lvgl.animation.start: sendspin_art_crossfade
+  # FIXME: I want type:grayscale (or even binary) but that keeps coming up as black instead of white with faulty transparency
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_state_pending
-    file: mdi:loading
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/pending_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_state_playing
-    file: mdi:play-circle-outline
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/play_circle_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_state_paused
-    file: mdi:pause-circle-outline
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/pause_circle_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_state_stopped
-    file: mdi:stop-circle-outline
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/stop_circle_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_state_announcing
-    file: mdi:bullhorn
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/campaign_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_volume_up
-    file: mdi:volume-plus
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/volume_up_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_volume_mute
-    file: mdi:volume-off
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/volume_off_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_volume_unmute
-    file: mdi:volume-mute
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/volume_mute_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
   - platform: file
     resize: 96x96
-    type: GRAYSCALE
-    transparency: chroma_key
+    type: RGB565
+    transparency: alpha_channel
     id: image_volume_down
-    file: mdi:volume-minus
+    file: "https://github.com/mijofa/ESPHome-misc/raw/11bda73c9b1ca1a28bb39faab31355611749b9cd/icons/volume_down_96dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"
 
 lvgl:
   - id: !extend ${display_lvgl_id}
