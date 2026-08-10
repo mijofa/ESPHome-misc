@@ -1,3 +1,14 @@
+substitutions:
+  # ref: https://docs.m5stack.com/en/atom/Atomic_Audio-3.5_Base#compatible
+  # These are the pins used by the AtomS3-Lite
+  # You should redefine them regardless as I may change my mind what I want to use by default
+  audio_base_pin_scl: GPIO39
+  audio_base_pin_sda: GPIO38
+  audio_base_pin_din: GPIO5
+  audio_base_pin_lrck: GPIO6
+  audio_base_pin_dout: GPIO7
+  audio_base_pin_sck: GPIO8
+
 external_components:
   # I couldn't find mention of this in m5stack's docs, but I found it somewhere online and it made things work.
   # Without this, the amp turned on and silent/static came out during playback, but no actual audio
@@ -7,10 +18,12 @@ external_components:
     components: [es8311]
     refresh: 1d
   # https://github.com/esphome/esphome/pull/14389
-  - source: github://pr#14389
+  - id: upstream_pr_snapclient
+    source: github://pr#14389
     components: [ snapclient, media_player ]
     refresh: 1d
-  # - source: github://mijofa/esphome-luar123-snapclient@snapclient2
+  # - id: upstream_pr_snapclient
+  #   source: github://mijofa/esphome-luar123-snapclient@snapclient2
   #   components: [ snapclient, media_player ]
   #   refresh: 0s
 
@@ -21,89 +34,48 @@ esp32:
   framework:
     type: esp-idf
 
-
-# ref: https://docs.m5stack.com/en/homeassistant/media_player/atomic_audio_3.5_base
-# ...#31-basic-configuration
+### i2c/i2s communication bus
 i2c:
-  - id: ext_bus
-    # sda: GPIO38
-    sda: ${i2c_sda}
-    # scl: GPIO39
-    scl: ${i2c_scl}
-# ...#35-speaker-amplifier-configuration
-# This is a "port extender" it just gives you more GPIO over I2C.
-# It is only used for this 1 single "speaker enable" PIN,
-# without it the builtin speaker won't turn on.
-# It isn't useful to use because we don't care for the builtin speaker,
-# only the 3.5" socket
+  - id: audio_base_i2c_bus
+    sda: "${audio_base_pin_sda}"
+    scl: "${audio_base_pin_scl}"
+i2s_audio:
+  - id: audio_base_i2s_audio
+    i2s_lrclk_pin: "${audio_base_pin_lrck}"
+    i2s_bclk_pin: "${audio_base_pin_sck}"
+### Speaker Enable switch
+# The audio base uses a pin extender for just 1 single pin.
+# Mostly because they've designed the Atom connector pins with not much space for anything but the i2s/i2c bus.
 # FIXME: Consider marking this internal and always on.
 # FIXME: Can we switch this on/off from firmware when snapcast mutes/unmutes?
 pi4ioe5v6408:
-  - id: pi4ioe5v6408_hub
-    i2c_id: ext_bus
+  - id: audio_base_pi4ioe5v6408
+    i2c_id: audio_base_i2c_bus
     address: 0x43
-# switch:
-#   # This GPIO pin ONLY affects the internal speaker, not the dac itself.
-#   # Making it effectively useless to me, so might as well not have it.
-#   - platform: gpio
-#     name: "Speaker Enable"
-#     id: speaker_enable
-#     pin:
-#       pi4ioe5v6408: pi4ioe5v6408_hub
-#       number: 0
-#       mode:
-#         output: true
-#     icon: "mdi:volume-high"
-#     # FIXME: This should probably be ALWAYS_OFF and trust snapclient to turn it on after a reboot?
-#     restore_mode: ALWAYS_OFF
+switch:
+  - platform: gpio
+    # Note this affects ONLY the internal speaker, not the dac itself or 3.5 output.
+    # Making it effectively useless in most situations
+    id: audio_base_speaker_enable
+    pin:
+      pi4ioe5v6408: audio_base_pi4ioe5v6408
+      number: 0
+      mode:
+        output: true
+    # We deal with this internally, Home Assistant doesn't need to know about it
+    internal: true
+    restore_mode: ALWAYS_OFF
 
-# ...#32-audio-configuration
-i2s_audio:
-  - id: i2s_audio_bus
-    # i2s_lrclk_pin: GPIO6
-    i2s_lrclk_pin: ${i2s_lrclk_pin}
-    # i2s_bclk_pin: GPIO8
-    i2s_bclk_pin: ${i2s_bclk_pin}
+### Audio DAC for volume control
+# This DAC is what's causing the loud pop when silent for a bit
 audio_dac:
   - platform: es8311
     id: es8311_dac
-    i2c_id: ext_bus
+    i2c_id: audio_base_i2c_bus
     bits_per_sample: 16bit
-    sample_rate: 48000
+    sample_rate: "${audio_base_sample_rate}"
     use_microphone: false
     use_mclk: false
-
-# Uncomment this section for sendspin instead of snapcast
-# FIXME: Barely tested
-# speaker:
-#   - platform: i2s_audio
-#     id: i2s_speaker
-#     i2s_audio_id: i2s_audio_bus
-#     i2s_dout_pin: ${i2s_dout_pin}
-#     # i2s_dout_pin: GPIO5
-#     dac_type: external
-#     audio_dac: es8311_dac
-#     sample_rate: 48000
-#     channel: left
-# ...#33-media-player-configuration
-# sendspin:
-# media_source:
-#   - platform: sendspin
-#     id: sendspin_media_source
-#     buffer_size: 25000
-# media_player:
-#   - platform: speaker_source
-#     id: external_media_player
-#     name: Media Player
-#     volume_min: 0.5
-#     volume_max: 0.8
-#     media_pipeline:
-#       speaker: i2s_speaker
-#       format: FLAC
-#       sample_rate: "48000"
-#       num_channels: "1"
-#       sources:
-#         - sendspin_media_source
 
 # Uncomment this section for snapcast instead of sendspin
 media_player:
@@ -114,16 +86,15 @@ media_player:
     id: snapclient_media_player
     hostname: ${snapserver_hostname}
     # port: 1704  # default
-    name: ${friendly_name}
-    # FIXME: This pin ONLY affects the internal speaker, not the dac itself.
-    mute_pin:
-      pi4ioe5v6408: pi4ioe5v6408_hub
-      number: 0
-      mode:
-        output: true
+    # name: ${friendly_name}
+    # # FIXME: This pin ONLY affects the internal speaker, not the dac itself.
+    # mute_pin:
+    #   pi4ioe5v6408: pi4ioe5v6408_hub
+    #   number: 0
+    #   mode:
+    #     output: true
     # audio_dac: es8311_dac
-    i2s_dout_pin: ${i2s_dout_pin}
-    # i2s_dout_pin: GPIO5
+    i2s_dout_pin: "${audio_base_pin_din}"
     on_play:
       - logger.log: "Playback started!"
       - audio_dac.mute_off:
@@ -131,18 +102,18 @@ media_player:
       - audio_dac.set_volume:
           id: es8311_dac
           # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
-          volume: 62%
-      # - switch.turn_on: speaker_enable
+          volume: 65%
+      - switch.turn_on: speaker_enable
     on_pause:
       - logger.log: "Playback paused!"
       - audio_dac.mute_on:
           id: es8311_dac
-      # - switch.turn_off: speaker_enable
+      - switch.turn_off: speaker_enable
     on_idle:
       - logger.log: "Playback finished!"
       - audio_dac.mute_on:
           id: es8311_dac
-      # - switch.turn_off: speaker_enable
+      - switch.turn_off: speaker_enable
     # on_state:
     #   # FIXME: I would like to somehow flip a binary sensor or change an LED colour when the player is muted/unmuted.
     #   #        Is this even possible?
