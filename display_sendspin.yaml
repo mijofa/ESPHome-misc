@@ -153,45 +153,19 @@ media_player:
         - script.execute: display_player_temp_state
     # on_idle:
     #   then:
-    #     - lvgl.animation.start: sendspin_art_hide
     # on_pause:
     #   then:
-    #     - script.execute: display_player_state
     # on_turn_off:
     #   then:
-    #     - logger.log: "Sendspin Turn off"
     # on_play:
     #   then:
-    #     # FIXME: This is triggering every time I change volume and at other wrong times when it's already playing
-    #     - if:
-    #         condition:
-    #           - media_player.is_muted: media_player_sendspin
-    #         then:
-    #           - lvgl.label.update:
-    #               id: lbl_playback_state
-    #               text: "\U0000e04f"  # volume_off
-    #         else:
-    #           - switch.turn_on: audio_base_speaker_enable
-    #           - lvgl.label.update:
-    #               id: lbl_playback_state
-    #               text: "\U0000e1c4"  # play_arrow
-    #     - lvgl.animation.start: sendspin_art_show
     # on_announcement:
     #   then:
-    #     - lvgl.label.update:
-    #         id: lbl_playback_state
-    #         text: "\U0000ef49"  # campaign  [Looks like a megaphone/bullhorn]
     # on_turn_on:
     #   then:
-    #     - logger.log: "Sendspin Turn on"
 
 
 font:
-#   - id: font_roboto
-#     size: 24
-#     file:
-#       type: gfonts
-#       family: Roboto
   # FIXME: Consider emoji instead?  https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/issues/125
   #        That would at least render similarly in the editor
   # FIXME: These can't really be recognised in front of the sendspin cover art.
