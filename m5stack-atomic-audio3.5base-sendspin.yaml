@@ -1,0 +1,161 @@
+substitutions:
+  # ref: https://docs.m5stack.com/en/atom/Atomic_Audio-3.5_Base#compatible
+  # These are the pins used by the AtomS3R.
+  # You should redefine them regardless as I may change my mind what I want to use by default
+  audio_base_pin_scl: GPIO39
+  audio_base_pin_sda: GPIO38
+  audio_base_pin_din: GPIO5
+  audio_base_pin_lrck: GPIO6
+  audio_base_pin_dout: GPIO7
+  audio_base_pin_sck: GPIO8
+
+  # FIXME: Can I make this into a runtime configurable select entity in Home Assistant?
+  audio_base_channel: mono
+  audio_base_sample_rate: 32000
+  sendspin_use_psram: false
+  sendspin_buffer_size: 25000
+
+external_components:
+  - source: github://m5stack/esphome-yaml/components@main
+    components:
+      # I couldn't find mention of this in m5stack's docs, but I found it somewhere online and it made things work.
+      # Without this, the amp turned on and silent/static came out during playback, but no actual audio
+      # See https://github.com/m5stack/esphome-yaml/tree/main/components/es8311 for info
+      # It really should be mentioned somewhere here, but isn't: https://docs.m5stack.com/en/atom/Atomic_Audio-3.5_Base
+      # FIXME: Can I remove this and just set `use_mclk: false`? UPDATE: No
+      - es8311
+    refresh: 1d
+
+### i2c/i2s communication bus
+i2c:
+  - id: audio_base_i2c_bus
+    sda: "${audio_base_pin_sda}"
+    scl: "${audio_base_pin_scl}"
+i2s_audio:
+  - id: audio_base_i2s_audio
+    i2s_lrclk_pin: "${audio_base_pin_lrck}"
+    i2s_bclk_pin: "${audio_base_pin_sck}"
+
+### Speaker Enable switch
+# The audio base uses a pin extender for just 1 single pin.
+# Mostly because they've designed the Atom connector pins with not much space for anything but the i2s/i2c bus.
+pi4ioe5v6408:
+  - id: audio_base_pi4ioe5v6408
+    i2c_id: audio_base_i2c_bus
+    address: 0x43
+switch:
+  - platform: gpio
+    # Note this affects ONLY the internal speaker, not the dac itself or 3.5 output.
+    # Making it effectively useless in most situations
+    id: audio_base_speaker_enable
+    pin:
+      pi4ioe5v6408: audio_base_pi4ioe5v6408
+      number: 0
+      mode:
+        output: true
+    # We deal with this internally, Home Assistant doesn't need to know about it
+    internal: true
+    restore_mode: ALWAYS_OFF
+    on_turn_off:
+      then:
+        - if:
+            condition:
+              - media_player.is_playing: media_player_sendspin
+            then:
+              - media_player.mute: media_player_sendspin
+    on_turn_on:
+      then:
+        - media_player.unmute: media_player_sendspin
+
+### Audio DAC for volume control
+audio_dac:
+  - platform: es8311
+    id: es8311_dac
+    i2c_id: audio_base_i2c_bus
+    bits_per_sample: 16bit
+    sample_rate: "${audio_base_sample_rate}"
+    use_microphone: false
+    use_mclk: false
+
+### Speaker output
+speaker:
+  - platform: i2s_audio
+    id: audio_base_i2s_speaker
+    i2s_audio_id: audio_base_i2s_audio
+    i2s_dout_pin: "${audio_base_pin_din}"
+    dac_type: external
+    audio_dac: es8311_dac
+    sample_rate: "${audio_base_sample_rate}"
+    channel: "${audio_base_channel}"
+
+### Media player input
+sendspin:
+  # The sendspin hub itself, we can't use sendspin without it
+  id: sendspin_hub
+  task_stack_in_psram: "${sendspin_use_psram}"
+
+media_source:
+  - platform: sendspin
+    id: media_source_sendspin
+    task_stack_in_psram: "${sendspin_use_psram}"
+    buffer_size: "${sendspin_buffer_size}"
+    sample_rate: "${audio_base_sample_rate}"
+media_player:
+  # Actually play sound from Sendspin
+  - platform: speaker_source
+    id: media_player_sendspin
+    # No point showing this to Home Assistant because Music Assistant will do that for us.
+    # FIXME: Can I have Home Assistant combine the ESPHome device with the Music Assistant one?
+    internal: true
+    # FIXME: These numbers were used by m5stack upstream, are they reasonable?
+    volume_min: 0.5
+    volume_max: 0.8
+    media_pipeline:
+      speaker: audio_base_i2s_speaker
+      format: FLAC
+      sample_rate: "${audio_base_sample_rate}"
+      num_channels: "1"
+      sources:
+        - media_source_sendspin
+    # FIXME: Are these 2 covered by on_state?
+    on_mute:
+      then:
+        - script.execute: audio_base_player_enable_speaker
+    on_unmute:
+      then:
+        - script.execute: audio_base_player_enable_speaker
+    # on_idle:
+    #   then:
+    #     - script.execute: audio_base_player_enable_speaker
+    # on_pause:
+    #   then:
+    #     - script.execute: audio_base_player_enable_speaker
+    # on_turn_off:
+    #   then:
+    #     - script.execute: audio_base_player_enable_speaker
+    # on_play:
+    #   then:
+    #     - script.execute: audio_base_player_enable_speaker
+    # FIXME: Is this definitely covered by on_state?
+    # on_announcement:
+    #   then:
+    #     - script.execute: audio_base_player_enable_speaker
+    on_state:
+      then:
+        - script.execute: audio_base_player_enable_speaker
+
+script:
+  - id: audio_base_player_enable_speaker
+    mode: restart
+    then:
+      - if:
+          any:
+            - media_player.is_idle: media_player_sendspin
+            - media_player.is_paused: media_player_sendspin
+            - media_player.is_off: media_player_sendspin
+            - media_player.is_muted: media_player_sendspin
+            # FIXME: How does 'is_announcing' fit in here?
+          then:
+            - switch.turn_off: audio_base_speaker_enable
+          else:
+            - switch.turn_on: audio_base_speaker_enable
