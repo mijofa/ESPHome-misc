@@ -64,8 +64,9 @@ media_player:
     internal: true
     # The amp in this thing is very loud, but there's also some static.
     # So if we leave the volume here too low, it'll sound like shit.
-    # This only affects the "hardware" volume, sendspin and/or music assistant transparently uses software volume as needed
-    volume_min: 0.75
+    # Of note, I could still hear "something" down to ~0.2, but it was a non-linear scale up to ~0.45.
+    # I could still barely hear it until ~0.4 so this is a reasonable minimum I can work with.
+    volume_min: 0.4
     volume_max: 1.0
     media_pipeline:
       speaker: spk_base_i2s_speaker
