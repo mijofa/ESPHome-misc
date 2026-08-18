@@ -87,32 +87,32 @@ media_player:
     hostname: ${snapserver_hostname}
     # port: 1704  # default
     # name: ${friendly_name}
-    # # FIXME: This pin ONLY affects the internal speaker, not the dac itself.
-    # mute_pin:
-    #   pi4ioe5v6408: pi4ioe5v6408_hub
-    #   number: 0
-    #   mode:
-    #     output: true
-    # audio_dac: es8311_dac
+    # FIXME: This pin ONLY affects the internal speaker, not the dac itself.
+    mute_pin:
+      pi4ioe5v6408: pi4ioe5v6408_hub
+      number: 0
+      mode:
+        output: true
+    audio_dac: es8311_dac
     i2s_dout_pin: "${audio_base_pin_din}"
     on_play:
       - logger.log: "Playback started!"
-      - audio_dac.mute_off:
-          id: es8311_dac
-      - audio_dac.set_volume:
-          id: es8311_dac
-          # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
-          volume: 65%
+      # - audio_dac.mute_off:
+      #     id: es8311_dac
+      # - audio_dac.set_volume:
+      #     id: es8311_dac
+      #     # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
+      #     volume: 65%
       - switch.turn_on: audio_base_speaker_enable
     on_pause:
       - logger.log: "Playback paused!"
-      - audio_dac.mute_on:
-          id: es8311_dac
+      # - audio_dac.mute_on:
+      #     id: es8311_dac
       - switch.turn_off: audio_base_speaker_enable
     on_idle:
       - logger.log: "Playback finished!"
-      - audio_dac.mute_on:
-          id: es8311_dac
+      # - audio_dac.mute_on:
+      #     id: es8311_dac
       - switch.turn_off: audio_base_speaker_enable
     # on_state:
     #   # FIXME: I would like to somehow flip a binary sensor or change an LED colour when the player is muted/unmuted.
