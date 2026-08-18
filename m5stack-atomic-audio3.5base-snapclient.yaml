@@ -89,7 +89,7 @@ media_player:
     # name: ${friendly_name}
     # FIXME: This pin ONLY affects the internal speaker, not the dac itself.
     mute_pin:
-      pi4ioe5v6408: pi4ioe5v6408_hub
+      pi4ioe5v6408: audio_base_pi4ioe5v6408
       number: 0
       mode:
         output: true
