@@ -146,10 +146,10 @@ script:
     then:
       - if:
           any:
-            - media_player.is_idle: media_player_sendspin
-            - media_player.is_paused: media_player_sendspin
-            - media_player.is_off: media_player_sendspin
-            # - media_player.is_muted: media_player_sendspin
+            - media_player.is_idle: media_player_snapclient
+            - media_player.is_paused: media_player_snapclient
+            - media_player.is_off: media_player_snapclient
+            # - media_player.is_muted: media_player_snapclient
             # FIXME: How does 'is_announcing' fit in here?
           then:
             - switch.turn_off: audio_base_speaker_enable
