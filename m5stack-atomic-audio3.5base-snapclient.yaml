@@ -132,12 +132,12 @@ media_player:
       then:
         - logger.log: "Playback State change!"
         - script.execute: audio_base_player_enable_speaker
-    on_mute:
-      then:
-        - script.execute: audio_base_player_enable_speaker
-    on_unmute:
-      then:
-        - script.execute: audio_base_player_enable_speaker
+    # on_mute:
+    #   then:
+    #     - script.execute: audio_base_player_enable_speaker
+    # on_unmute:
+    #   then:
+    #     - script.execute: audio_base_player_enable_speaker
 
 
 script:
@@ -149,7 +149,7 @@ script:
             - media_player.is_idle: media_player_sendspin
             - media_player.is_paused: media_player_sendspin
             - media_player.is_off: media_player_sendspin
-            - media_player.is_muted: media_player_sendspin
+            # - media_player.is_muted: media_player_sendspin
             # FIXME: How does 'is_announcing' fit in here?
           then:
             - switch.turn_off: audio_base_speaker_enable
