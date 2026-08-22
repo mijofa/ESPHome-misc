@@ -14,7 +14,8 @@ external_components:
   # Without this, the amp turned on and silent/static came out during playback, but no actual audio
   # See https://github.com/m5stack/esphome-yaml/tree/main/components/es8311 for info
   # FIXME: Can I remove this and just set `use_mclk: false`? Looks like that's already set
-  - source: github://m5stack/esphome-yaml/components@main
+  - id: upstream_m5stack
+    source: github://m5stack/esphome-yaml/components@main
     components: [es8311]
     refresh: 1d
   # https://github.com/esphome/esphome/pull/14389
@@ -106,30 +107,30 @@ media_player:
     audio_dac: audio_base_dac
     i2s_dout_pin: "${audio_base_pin_din}"
     on_play:
-      - logger.log: "Playback started!"
-      # - audio_dac.mute_off:
-      #     id: audio_base_dac
-      # - audio_dac.set_volume:
-      #     id: audio_base_dac
-      #     # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
-      #     volume: 65%
-      # - switch.turn_on: audio_base_speaker_enable
+      then:
+        - logger.log: "Playback started!"
+        # - audio_dac.mute_off:
+        #     id: audio_base_dac
+        # - audio_dac.set_volume:
+        #     id: audio_base_dac
+        #     # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
+        #     volume: 65%
+        # - switch.turn_on: audio_base_speaker_enable
     on_pause:
-      - logger.log: "Playback paused!"
-      # - audio_dac.mute_on:
-      #     id: audio_base_dac
-      # - switch.turn_off: audio_base_speaker_enable
+      then:
+        - logger.log: "Playback paused!"
+        # - audio_dac.mute_on:
+        #     id: audio_base_dac
+        # - switch.turn_off: audio_base_speaker_enable
     on_idle:
-      - logger.log: "Playback finished!"
-      # - audio_dac.mute_on:
-      #     id: audio_base_dac
-      # - switch.turn_off: audio_base_speaker_enable
-    # on_state:
-    #   # FIXME: I would like to somehow flip a binary sensor or change an LED colour when the player is muted/unmuted.
-    #   #        Is this even possible?
-    #   - logger.log: "Playback State change!"
+      then:
+        - logger.log: "Playback finished!"
+        # - audio_dac.mute_on:
+        #     id: audio_base_dac
+        # - switch.turn_off: audio_base_speaker_enable
     on_state:
       then:
+        - logger.log: "Playback State change!"
         - script.execute: audio_base_player_enable_speaker
     on_mute:
       then:

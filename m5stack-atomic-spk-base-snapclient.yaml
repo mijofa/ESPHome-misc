@@ -29,7 +29,7 @@ esp32:
 
 ### i2c/i2s communication bus
 i2s_audio:
-  - id: audio_base_i2s_audio
+  - id: spk_base_i2s_audio
     i2s_lrclk_pin: "${spk_base_pin_lrclk}"
     i2s_bclk_pin: "${spk_base_pin_bclk}"
 
