@@ -70,7 +70,7 @@ pi4ioe5v6408:
 # This DAC is what's causing the loud pop when silent for a bit
 audio_dac:
   - platform: es8311
-    id: es8311_dac
+    id: audio_base_dac
     i2c_id: audio_base_i2c_bus
     bits_per_sample: 16bit
     sample_rate: "${audio_base_sample_rate}"
@@ -93,26 +93,26 @@ media_player:
       number: 0
       mode:
         output: true
-    audio_dac: es8311_dac
+    audio_dac: audio_base_dac
     i2s_dout_pin: "${audio_base_pin_din}"
     on_play:
       - logger.log: "Playback started!"
       # - audio_dac.mute_off:
-      #     id: es8311_dac
+      #     id: audio_base_dac
       # - audio_dac.set_volume:
-      #     id: es8311_dac
+      #     id: audio_base_dac
       #     # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
       #     volume: 65%
       # - switch.turn_on: audio_base_speaker_enable
     on_pause:
       - logger.log: "Playback paused!"
       # - audio_dac.mute_on:
-      #     id: es8311_dac
+      #     id: audio_base_dac
       # - switch.turn_off: audio_base_speaker_enable
     on_idle:
       - logger.log: "Playback finished!"
       # - audio_dac.mute_on:
-      #     id: es8311_dac
+      #     id: audio_base_dac
       # - switch.turn_off: audio_base_speaker_enable
     # on_state:
     #   # FIXME: I would like to somehow flip a binary sensor or change an LED colour when the player is muted/unmuted.

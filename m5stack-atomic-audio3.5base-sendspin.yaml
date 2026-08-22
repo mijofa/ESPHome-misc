@@ -70,7 +70,7 @@ switch:
 ### Audio DAC for volume control
 audio_dac:
   - platform: es8311
-    id: es8311_dac
+    id: audio_base_dac
     i2c_id: audio_base_i2c_bus
     bits_per_sample: 16bit
     sample_rate: "${audio_base_sample_rate}"
@@ -84,7 +84,7 @@ speaker:
     i2s_audio_id: audio_base_i2s_audio
     i2s_dout_pin: "${audio_base_pin_din}"
     dac_type: external
-    audio_dac: es8311_dac
+    audio_dac: audio_base_dac
     sample_rate: "${audio_base_sample_rate}"
     channel: "${audio_base_channel}"
 
