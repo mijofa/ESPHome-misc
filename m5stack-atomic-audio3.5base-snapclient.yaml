@@ -46,25 +46,35 @@ i2s_audio:
 ### Speaker Enable switch
 # The audio base uses a pin extender for just 1 single pin.
 # Mostly because they've designed the Atom connector pins with not much space for anything but the i2s/i2c bus.
-# FIXME: Consider marking this internal and always on.
-# FIXME: Can we switch this on/off from firmware when snapcast mutes/unmutes?
 pi4ioe5v6408:
   - id: audio_base_pi4ioe5v6408
     i2c_id: audio_base_i2c_bus
     address: 0x43
-# switch:
-#   - platform: gpio
-#     # Note this affects ONLY the internal speaker, not the dac itself or 3.5 output.
-#     # Making it effectively useless in most situations
-#     id: audio_base_speaker_enable
-#     pin:
-#       pi4ioe5v6408: audio_base_pi4ioe5v6408
-#       number: 0
-#       mode:
-#         output: true
-#     # We deal with this internally, Home Assistant doesn't need to know about it
-#     internal: true
-#     restore_mode: ALWAYS_OFF
+switch:
+  - platform: gpio
+    # Note this affects ONLY the internal speaker, not the dac itself or 3.5 output.
+    # Making it effectively useless in most situations
+    id: audio_base_speaker_enable
+    pin:
+      pi4ioe5v6408: audio_base_pi4ioe5v6408
+      number: 0
+      mode:
+        output: true
+    # We deal with this internally, Home Assistant doesn't need to know about it
+    internal: true
+    restore_mode: ALWAYS_OFF
+    # This doesn't work well with Snapcast, so just log the state
+    on_turn_off:
+      then:
+        - logger.log: "Speaker disabled"
+        # - if:
+        #     condition:
+        #       - media_player.is_playing: media_player_sendspin
+        #     then:
+        #       - media_player.mute: media_player_sendspin
+    on_turn_on:
+      then:
+        - logger.log: "Speaker enabled"
 
 ### Audio DAC for volume control
 # This DAC is what's causing the loud pop when silent for a bit
@@ -87,12 +97,12 @@ media_player:
     # hostname: ${snapserver_hostname}
     # port: 1704  # default
     # name: ${friendly_name}
-    # FIXME: This pin ONLY affects the internal speaker, not the dac itself.
-    mute_pin:
-      pi4ioe5v6408: audio_base_pi4ioe5v6408
-      number: 0
-      mode:
-        output: true
+    # # FIXME: This pin ONLY affects the internal speaker, not the dac itself.
+    # mute_pin:
+    #   pi4ioe5v6408: audio_base_pi4ioe5v6408
+    #   number: 0
+    #   mode:
+    #     output: true
     audio_dac: audio_base_dac
     i2s_dout_pin: "${audio_base_pin_din}"
     on_play:
@@ -118,3 +128,37 @@ media_player:
     #   # FIXME: I would like to somehow flip a binary sensor or change an LED colour when the player is muted/unmuted.
     #   #        Is this even possible?
     #   - logger.log: "Playback State change!"
+    on_state:
+      then:
+        - script.execute: audio_base_player_enable_speaker
+    on_mute:
+      then:
+        - script.execute: audio_base_player_enable_speaker
+    on_unmute:
+      then:
+        - script.execute: audio_base_player_enable_speaker
+
+
+script:
+  - id: audio_base_player_enable_speaker
+    mode: restart
+    then:
+      - if:
+          any:
+            - media_player.is_idle: media_player_sendspin
+            - media_player.is_paused: media_player_sendspin
+            - media_player.is_off: media_player_sendspin
+            - media_player.is_muted: media_player_sendspin
+            # FIXME: How does 'is_announcing' fit in here?
+          then:
+            - switch.turn_off: audio_base_speaker_enable
+            # - audio_dac.mute_on:
+            #     id: audio_base_dac
+          else:
+            - switch.turn_on: audio_base_speaker_enable
+            # - audio_dac.set_volume:
+            #     id: audio_base_dac
+            #     # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
+            #     volume: 65%
+            # - audio_dac.mute_off:
+            #     id: audio_base_dac
