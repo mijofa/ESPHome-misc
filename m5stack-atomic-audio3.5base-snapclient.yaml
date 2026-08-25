@@ -104,11 +104,12 @@ media_player:
     #   number: 0
     #   mode:
     #     output: true
-    audio_dac: audio_base_dac
+    # audio_dac: audio_base_dac
     i2s_dout_pin: "${audio_base_pin_din}"
     on_play:
       then:
         - logger.log: "Playback started!"
+        - script.execute: audio_base_player_enable_speaker
         # - audio_dac.mute_off:
         #     id: audio_base_dac
         # - audio_dac.set_volume:
@@ -119,12 +120,14 @@ media_player:
     on_pause:
       then:
         - logger.log: "Playback paused!"
+        - script.execute: audio_base_player_enable_speaker
         # - audio_dac.mute_on:
         #     id: audio_base_dac
         # - switch.turn_off: audio_base_speaker_enable
     on_idle:
       then:
         - logger.log: "Playback finished!"
+        - script.execute: audio_base_player_enable_speaker
         # - audio_dac.mute_on:
         #     id: audio_base_dac
         # - switch.turn_off: audio_base_speaker_enable
@@ -153,13 +156,13 @@ script:
             # FIXME: How does 'is_announcing' fit in here?
           then:
             - switch.turn_off: audio_base_speaker_enable
-            # - audio_dac.mute_on:
-            #     id: audio_base_dac
+            - audio_dac.mute_on:
+                id: audio_base_dac
           else:
             - switch.turn_on: audio_base_speaker_enable
-            # - audio_dac.set_volume:
-            #     id: audio_base_dac
-            #     # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
-            #     volume: 65%
-            # - audio_dac.mute_off:
-            #     id: audio_base_dac
+            - audio_dac.set_volume:
+                id: audio_base_dac
+                # I've seen indication that I should sit between 0.5 & 0.8, so let's split the difference and go with 0.65
+                volume: 65%
+            - audio_dac.mute_off:
+                id: audio_base_dac
