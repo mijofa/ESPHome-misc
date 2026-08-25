@@ -19,14 +19,14 @@ external_components:
     components:
       - lp5562
     refresh: 1d
-  # # Sendspin album art  https://github.com/esphome/esphome/pull/16057
-  # - source: github://pr#16057
-  #   components: [generic_image.sendspin]
+  # # # Sendspin album art  https://github.com/esphome/esphome/pull/16057
+  # # - source: github://pr#16057
+  # #   components: [generic_image.sendspin]
+  # #   refresh: 1h
+  # # Sendspin album art  https://github.com/esphome/esphome/pull/17937
+  # - source: github://pr#17937
+  #   components: [runtime_image, sendspin]
   #   refresh: 1h
-  # Sendspin album art  https://github.com/esphome/esphome/pull/17937
-  - source: github://pr#17937
-    components: [runtime_image, sendspin]
-    refresh: 1h
 
 ### Internal comms bus
 i2c:
