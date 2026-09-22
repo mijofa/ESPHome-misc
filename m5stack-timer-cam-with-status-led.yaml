@@ -1,6 +1,8 @@
 # ref: https://docs.m5stack.com/en/homeassistant/camera/timercamera
 
 # Device basics
+esp32:
+  variant: esp32
 psram:
   mode: quad
   speed: 80MHz
