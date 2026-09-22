@@ -1,0 +1,195 @@
+# ref: https://docs.m5stack.com/en/homeassistant/camera/timercamera
+
+# Device basics
+psram:
+  mode: quad
+  speed: 80MHz
+i2c:
+  - id: bsp_i2c
+    sda: {number: GPIO12, ignore_strapping_warning: true}
+    scl: GPIO14
+  - id: cam_i2c
+    sda: GPIO25
+    scl: GPIO23
+# * Add the RTC Time component.
+time:
+  - platform: bm8563
+    i2c_id: bsp_i2c
+    id: time_rtc
+    # repeated synchronization is not necessary unless the external RTC
+    # is much more accurate than the internal clock
+    update_interval: never
+  - platform: homeassistant
+    id: time_net
+    on_time_sync:
+      then:
+        bm8563.write_time:
+  # - platform: sntp
+  #   # NOTE: ESPHome docs say 'homeassistant' is better, but we're on a non-HA network
+  #   # instead try to synchronize via network repeatedly ...
+  #   on_time_sync:
+  #     then:
+  #       # ... and update the RTC when the synchronization was successful
+  #       bm8563.write_time:
+  # - platform: homeassistant
+  #   # instead try to synchronize via network repeatedly ...
+  #   on_time_sync:
+  #     then:
+  #       # ... and update the RTC when the synchronization was successful
+  #       bm8563.write_time:
+
+# Camera itself
+esp32_camera:
+  - id: ov3660_cam
+    name: OV3660 Camera
+    external_clock:
+      pin: GPIO27
+      frequency: 20MHz
+    i2c_id: cam_i2c
+    data_pins: [GPIO32, GPIO35, GPIO34, {number: GPIO5, ignore_strapping_warning: true}, GPIO39, GPIO18, GPIO36, GPIO19]
+    vsync_pin: GPIO22
+    href_pin: GPIO26
+    pixel_clock_pin: GPIO21
+    reset_pin: {number: GPIO15, ignore_strapping_warning: true}
+    # resolution: 2048x1536
+    # resolution: 1024x768
+    resolution: 640x480
+    # jpeg_quality: 10
+    # brightness: 1
+    contrast: 2
+    horizontal_mirror: false
+    wb_mode: HOME
+    max_framerate: 5FPS
+    # This seems to fire repeatedly forever a little slowly,
+    # and also repeatedly real quickly when actually watching a stream
+    # on_image:
+    # This seems to fire repeatedly while watching a stream... why repeatedly?
+    on_stream_start: {switch.turn_on: stream_is_active}
+    # This only fires once, when the stream stops
+    on_stream_stop: {switch.turn_off: stream_is_active}
+
+# * Configure LED.
+output:
+  - platform: ledc
+    id: blue_led
+    # Explicitly hide this from Home Assistant & the web UI.
+    # I want to make it as hard as possible for anyone to watch the camera stream without this led turning on
+    internal: true
+    pin: {number: GPIO2, ignore_strapping_warning: true}
+light:
+  - platform: monochromatic
+    output: blue_led
+    restore_mode: RESTORE_DEFAULT_ON
+    id: blue_light
+    # Explicitly hide this from Home Assistant & the web UI.
+    # I want to make it as hard as possible for anyone to watch the camera stream without this led turning on
+    internal: true
+    # Only enable this during dev/debug
+    # name: "Blue LED"
+    # entity_category: DIAGNOSTIC
+    # disabled_by_default: true
+
+# * Use battery.
+# GPIO33 is used here to control whether to use the battery.
+# Turning it on and keeping it pulled high allows the battery to work.
+switch:
+  # Internal switch for the battery
+  - platform: gpio
+    id: bat_hold_pin
+    # name: "REAL Battery Hold Pin"
+    internal: false
+    pin: GPIO33
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_off:
+      # Turn off the "maybe" switch as well, since this should never be off while that's on
+      then:
+        - if:
+            condition: {switch.is_on: maybe_hold_battery}
+            then: {switch.turn_off: maybe_hold_battery}
+  # User/HA switchable toggle for the battery
+  # If this is on, the battery should be active regardless of stream state
+  # If this is off, the battery should be held only when the stream is active.
+  - platform: template
+    id: maybe_hold_battery
+    name: "Battery Hold Pin"
+    restore_mode: RESTORE_DEFAULT_OFF
+    optimistic: true
+    turn_on_action:
+      - if:
+          condition: {switch.is_off: bat_hold_pin}
+          then: {switch.turn_on: bat_hold_pin}
+    turn_off_action:
+      - if:
+          all:
+            - switch.is_off: stream_is_active
+            - switch.is_on: bat_hold_pin
+          then: {switch.turn_off: bat_hold_pin}
+  # Hidden internal switch, kept on when a stream is active.
+  # Used to turn on an LED indicator, and keep the battery active.
+  - id: stream_is_active
+    platform: template
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - if:
+          condition: {switch.is_off: bat_hold_pin}
+          then: {switch.turn_on: bat_hold_pin}
+      - if:
+          condition: {light.is_off: blue_light}
+          then: {light.turn_on: {id: blue_light, brightness: 100%}}
+    turn_off_action:
+      - if:
+          all:
+            - switch.is_on: bat_hold_pin
+            - switch.is_off: maybe_hold_battery
+          then: {switch.turn_off: bat_hold_pin}
+      - if:
+          condition: {light.is_on: blue_light}
+          then: {light.turn_off: blue_light}
+binary_sensor:
+  - platform: switch
+    name: "Battery active"
+    source_id: bat_hold_pin
+    entity_category: DIAGNOSTIC
+    disabled_by_default: true
+    device_class: power
+
+
+# * Monitor battery level information.
+#   TimerCamera-X and TimerCamera-F come pre-installed with a battery.
+#   You can obtain battery voltage information through the ADC reading of GPIO38,
+#   and get approximate battery level information after conversion:
+sensor:
+  - platform: adc
+    pin: GPIO38
+    attenuation: 12dB
+    name: "Battery Voltage"
+    id: battery_voltage
+    device_class: voltage
+    update_interval: 10s
+    filters:
+      - multiply: 1.51
+
+  - platform: template
+    id: battery_percent
+    name: "Battery Percentage"
+    # unit_of_measurement: "%"
+    device_class: battery
+    accuracy_decimals: 0
+    lambda: |-
+      // Can't get reliable battery percentage if the battery isn't on anyway
+      if (id(bat_hold_pin).state == false) return NAN;
+
+      float voltage = id(battery_voltage).state;
+      // This is way too low, something must be wrong...
+      // In my experience, when the battery isn't held the voltage will be <0.2
+      // I tried to catch that above, but there's a short time after the battery is held where the voltage is still low
+      if (voltage <= 0.250f) return NAN;
+      float min_voltage = 3.350f;
+      float max_voltage = 4.150f;
+
+      if (voltage <= min_voltage) return 0.0;
+      if (voltage >= max_voltage) return 100.0;
+
+      float percent = ((voltage - min_voltage) / (max_voltage - min_voltage)) * 100.0;
+      return percent;
+
