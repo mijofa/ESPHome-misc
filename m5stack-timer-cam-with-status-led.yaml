@@ -1,6 +1,11 @@
 # ref: https://docs.m5stack.com/en/homeassistant/camera/timercamera
 
 # Device basics
+esphome:
+  on_boot:  # ref: https://docs.m5stack.com/en/homeassistant/camera/timercamera#:~:text=bm8563%2Eread%5Ftime%3A
+    then:
+      # read the RTC time once when the system boots
+      - bm8563.read_time:
 esp32:
   variant: esp32
 psram:
