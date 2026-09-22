@@ -1,3 +1,19 @@
+# This serves 2 main purposes:
+# * Turn off a bunch of modules upstream enables but I don't use.
+#   Spcifically update & WiFi AP related things as I don't want this to fail open/insecure
+#   FIXME: Put this in a separate file, it's valid for all athom.tech devices, not just smart plugs
+# * The "power off after ..." modes.
+#   This is mostly for battery chargers and similar things that only need to be on for a period of time and turn off after to avoid overcharging
+#   I wasn't comfortable using Home Assistant for this, as it's a relatively long window of opportunity for various HA reboots and similar to mess with.
+#   So I've set this up with 2 optional modes (3 if you include "never") which run on the plug itself:
+#
+#   a) Power off after 4hrs (configurable at build time with `power_off_after`)
+#      A simple timer that will turn the relay off after it's been on for 4hrs.
+#   b) Power off after power drops below 0.5W for 10mins (configurable at build time with `power_drop_below` & `power_drop_for`)
+#      This uses the builtin power meter to identify when the usage drops low and turns off completely afterward.
+#      It waits 10mins as a simple safety net, however I would not recommend setting this time particularly low,
+#      as most chargers can/will stop completely for at least a few seconds when switching mode at different charge levels.
+
 substitutions:
   # Just some defaults that I want for all my stuff
   ipv6_enable: true
