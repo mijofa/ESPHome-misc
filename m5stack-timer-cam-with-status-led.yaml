@@ -72,9 +72,6 @@ esp32_camera:
 output:
   - platform: ledc
     id: blue_led
-    # Explicitly hide this from Home Assistant & the web UI.
-    # I want to make it as hard as possible for anyone to watch the camera stream without this led turning on
-    internal: true
     pin: {number: GPIO2, ignore_strapping_warning: true}
 light:
   - platform: monochromatic
