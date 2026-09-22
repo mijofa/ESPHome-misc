@@ -1,0 +1,152 @@
+substitutions:
+  # Just some defaults that I want for all my stuff
+  ipv6_enable: true
+  wifi_fast_connect: true
+  # Default is 16 per the US/EU/etc standard, but AU standard is 10
+  current_limit: 10
+  power_plug_type: "power-socket-au"
+
+  # These variables are gated behind the select template below.
+  # Useful for charging "dumb" batteries which aren't trusted to keep themselves at a healthy 70-90% if left plugged in forever
+  #
+  # Power off after being turned on for...
+  power_off_after: 4h
+  # Power off when power drops below...
+  power_drop_below: 0.5
+  # for...
+  power_drop_for: 10min
+
+packages:
+  China Athom Technology.Smart Plug V3: "github://athom-tech/esp32-configs/athom-smart-plug.yaml"
+
+ota:
+  - id: !remove ota_http_request
+http_request:
+  id: !remove http_request_component
+update:
+  - id: !remove update_http_request
+web_server: !remove
+captive_portal: !remove
+esp32_improv:
+  authorizer: none
+  wifi_timeout: 5min
+time:
+  - id: !remove sntp_time
+  - id: ha_time
+    platform: homeassistant
+
+# FIXME: I couldn't make this work as I was struggling to template the {for:time:...} value
+# number:
+#   - id: power_off_after_duration
+#     platform: template
+#     name: "Power off after"
+#     device_class: duration  # FIXME: What does this even do?
+#     unit_of_measurement: "minutes"
+#     entity_category: "config"
+#     optimistic: true
+#     restore_value: true
+#     initial_value: 0
+#     min_value: 0
+#     step: 1
+#     # FIXME: Is this a reasonable max?
+#     max_value: 720  # 12hrs
+#     set_action:
+#       - script.execute: power_off_after_script
+
+select:
+  - id: power_off_after_mode
+    platform: template
+    name: "Power off after"
+    options:
+      - "Never"
+      - "${power_off_after} timer"  # FIXME: Make this configurable
+      - "Power usage drop"
+    optimistic: true
+    entity_category: config
+    initial_option: "Never"
+    restore_value: true
+    on_value:
+      then:
+        - if:
+            any:
+              - script.is_running: power_off_after_script
+              - switch.is_on: relay
+            then:
+              # The script's mode is restart, so we don't really need to 'stop' it explicitly
+              # - script.stop: power_off_after_script
+              - script.execute: power_off_after_script
+
+script:
+  - id: power_off_after_script
+    mode: restart
+    then:
+      - if:
+          all:
+            - switch.is_on: relay
+              # FIXME: If 0, do nothing
+            - not:
+                select.is:
+                  id: power_off_after_mode
+                  options: ["Never"]
+          then:
+            - if:
+                condition:
+                  - select.is:
+                      id: power_off_after_mode
+                      options: ["${power_off_after} timer"]
+                then:
+                  # I'd like to add a sensor which we update here with when the relay will be switched off.
+                  - logger.log: "Waiting ${power_off_after} before turning off relay"
+                  - wait_until:
+                      condition:
+                        for:
+                          time: "${power_off_after}"
+                          # time: !lambda return id(power_off_after_duration).state * 60;
+                          #   minutes: !lambda id(power_off_after_duration).state
+                          condition:
+                            - switch.is_on: relay
+                  - logger.log: "Relay was on for ${power_off_after}, switching it off"
+                  - switch.turn_off: relay
+                else:
+                  - if:
+                      condition:
+                        - select.is:
+                            id: power_off_after_mode
+                            options: ["Power usage drop"]
+                      then:
+                        - logger.log: "Waiting for power usage drop before turning off relay"
+                        - wait_until:
+                            condition:
+                              for:
+                                time: "${power_drop_for}"
+                                condition:
+                                  all:
+                                    # Important to check that it's been on here,
+                                    # because when the relay is off the power is 0.
+                                    # So if we don't check this, it will always turn off immediately.
+                                    - switch.is_on: relay
+                                    - sensor.in_range:
+                                        id: power_sensor
+                                        below: ${power_drop_below}
+                        - logger.log: "Power dropped for ${power_drop_for}, switching off relay"
+                        - switch.turn_off: relay
+                      else:
+                        - logger.log:
+                            format: "This should be an impossible state, what's going on?"
+                            level: error
+          else:
+            - logger.log: "Relay is already off or set to never turn off"
+
+# sensor:
+#   - id: !extend athom_cse7766
+#     # FIXME: File a bug with athom.tech about having no ID here?
+#     current:
+#       id: current_sensor
+
+switch:
+  - id: !extend relay
+    on_turn_on:
+      - script.execute: power_off_after_script
+    on_turn_off:
+      - script.stop: power_off_after_script
+
