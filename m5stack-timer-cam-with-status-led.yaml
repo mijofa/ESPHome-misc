@@ -47,33 +47,33 @@ time:
 
 # Camera itself
 esp32_camera:
-  - id: ov3660_cam
-    name: OV3660 Camera
-    external_clock:
-      pin: GPIO27
-      frequency: 20MHz
-    i2c_id: cam_i2c
-    data_pins: [GPIO32, GPIO35, GPIO34, {number: GPIO5, ignore_strapping_warning: true}, GPIO39, GPIO18, GPIO36, GPIO19]
-    vsync_pin: GPIO22
-    href_pin: GPIO26
-    pixel_clock_pin: GPIO21
-    reset_pin: {number: GPIO15, ignore_strapping_warning: true}
-    # resolution: 2048x1536
-    # resolution: 1024x768
-    resolution: 640x480
-    # jpeg_quality: 10
-    # brightness: 1
-    contrast: 2
-    horizontal_mirror: false
-    wb_mode: HOME
-    max_framerate: 5FPS
-    # This seems to fire repeatedly forever a little slowly,
-    # and also repeatedly real quickly when actually watching a stream
-    # on_image:
-    # This seems to fire repeatedly while watching a stream... why repeatedly?
-    on_stream_start: {switch.turn_on: stream_is_active}
-    # This only fires once, when the stream stops
-    on_stream_stop: {switch.turn_off: stream_is_active}
+  id: ov3660_cam
+  name: OV3660 Camera
+  external_clock:
+    pin: GPIO27
+    frequency: 20MHz
+  i2c_id: cam_i2c
+  data_pins: [GPIO32, GPIO35, GPIO34, {number: GPIO5, ignore_strapping_warning: true}, GPIO39, GPIO18, GPIO36, GPIO19]
+  vsync_pin: GPIO22
+  href_pin: GPIO26
+  pixel_clock_pin: GPIO21
+  reset_pin: {number: GPIO15, ignore_strapping_warning: true}
+  # resolution: 2048x1536
+  # resolution: 1024x768
+  resolution: 640x480
+  # jpeg_quality: 10
+  # brightness: 1
+  contrast: 2
+  horizontal_mirror: false
+  wb_mode: HOME
+  max_framerate: 5FPS
+  # This seems to fire repeatedly forever a little slowly,
+  # and also repeatedly real quickly when actually watching a stream
+  # on_image:
+  # This seems to fire repeatedly while watching a stream... why repeatedly?
+  on_stream_start: {switch.turn_on: stream_is_active}
+  # This only fires once, when the stream stops
+  on_stream_stop: {switch.turn_off: stream_is_active}
 
 # * Configure LED.
 output:
@@ -151,6 +151,7 @@ switch:
           then: {light.turn_off: blue_light}
 binary_sensor:
   - platform: switch
+    # Useful for debugging as it explicitly tells HA/etc whether the battery is currently active
     name: "Battery active"
     source_id: bat_hold_pin
     entity_category: DIAGNOSTIC
