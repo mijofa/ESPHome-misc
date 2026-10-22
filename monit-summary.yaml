@@ -157,13 +157,22 @@ script:
                     }
                   });
 
+switch:
+  - platform: template
+    id: monit_check_ready
+    optimistic: true
+    internal: true
+    restore_mode: ALWAYS_OFF
 interval:
   - interval: "${monit_check_interval}"
     # FIXME: Can I have this wait until the network is up & running?
     startup_delay: 10s
     then:
-      # FIXME: Only if not already running?
-      - script.execute: monit_check
+      - if:
+          condition:
+            - switch.is_on: monit_check_ready
+          then:
+            - script.execute: monit_check
 
 sensor:
   - platform: number
