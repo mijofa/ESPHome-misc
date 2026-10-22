@@ -1,0 +1,235 @@
+substitutions:
+  monit_check_interval: 1min
+  monit_max_response_size: 5kB
+
+  monit_url: "http(s)://monit.../_status2?format=xml"
+
+# Monit uses XML for everything and this is the only ESPHome component I've found for XML
+# ref: https://github.com/freundTech/esphome-xml-component
+external_components:
+  - source: github://freundTech/esphome-xml-component
+    components: [ xml ]
+xml:
+http_request:
+script:
+  - id: monit_check
+    mode: restart
+    then:
+      - logger.log:
+          level: DEBUG
+          tag: "mijofa"
+          format: "Performing HTTP request to: %s"
+          args:
+            - "${monit_url}"
+      - http_request.get:
+          url: "${monit_url}"
+          request_headers:
+            Accept: text/xml
+          capture_response: true
+          # FIXME: How large can we reasonably make this? How large must we reasonably make this? The 1kB default was too small for a basic setup
+          # Having this too small results in failed XML parsing with this error: [E][xml:030]: Parse error: Error=XML_ERROR_PARSING ErrorID=15 (0xf) Line number=1
+          max_response_buffer_size: "${monit_max_response_size}"
+          on_error:
+            then:
+              - logger.log:
+                  level: ERROR
+                  tag: "mijofa"
+                  format: "Problem! Error occurred when performing HTTP request: %s"
+                  args:
+                    - "${monit_url}"
+              - binary_sensor.template.publish:
+                  id: monit_check_error
+                  state: ON
+              - number.to_min: monit_total_status_count
+              - number.to_min: monit_failing_status_count
+          on_response:
+            then:
+              # ref: https://github.com/freundTech/esphome-xml-component/blob/d3cd134592293db09e5fa1a0661bee6b91f56e67/examples/parse_xml.yaml#L50-L68
+              - if:
+                  condition:
+                    # # V1, /_status?format=xml
+                    # - lambda: |-
+                    #     return xml::parse_xml(body, [](XMLElement *root) -> bool {
+                    #       if (strcmp(root->Name(), "monit") != 0) {
+                    #         ESP_LOGD("mijofa", "ERROR: XML root element is not 'monit'");
+                    #         // FIXME: What's the best way to raise an exception here?
+                    #         return false;
+                    #       }
+                    #       // FIXME: Is this really the best way to iterate over these?
+                    #       for (XMLElement* child = root->FirstChildElement("service"); child; child = child->NextSiblingElement("service")) {
+                    #         if(child){
+                    #           XMLElement* status = child->FirstChildElement("status");
+                    #           const char* text = status->GetText();
+                    #           if (text && strcmp(text, "0") != 0) {
+                    #             return false;
+                    #           }
+                    #         }
+                    #       }
+                    #       // No failed services? Must be good then.
+                    #       return true;
+                    #     });
+
+                    # FIXME: Automatically figure out which one to use?
+
+                    # V2, /_status2?format=xml
+                    - lambda: |-
+                        return xml::parse_xml(body, [](XMLElement *root) -> bool {
+                          int total_status_count = 0;
+                          int failing_status_count = 0;
+
+                          if (strcmp(root->Name(), "monit") != 0) {
+                            ESP_LOGE("mijofa", "ERROR: XML root element is not 'monit'");
+                            // FIXME: What's the best way to raise an exception here?
+                            return false;
+                          }
+
+                          // FIXME: Do something with this...
+                          if (false){
+                            XMLElement* errors = root->FirstChildElement("errors");
+                            if (errors && errors->ChildElementCount() != 0) {
+                              // There's at least 1 error event
+                              return true;
+                            }
+
+                            for (XMLElement* event = errors->FirstChildElement("event"); event; event = errors->NextSiblingElement("event")) {
+                              if(event){
+                                // One of these: https://github.com/MMonit/monit/blob/master/src/event.h#L89-L159
+                                // To match the test which triggered the event
+                                int event_id = atoi(event->Attribute("id"));
+                                // One of these: https://github.com/MMonit/monit/blob/master/src/monit.h#L180-L187
+                                // To match the test state which triggered the event.
+                                int event_state = atoi(event->Attribute("state"));
+                              }
+                            }
+                          }
+
+                          // Get all <services> element
+                          XMLElement* services = root->FirstChildElement("services");
+                          if (!services) {
+                            ESP_LOGW("mijofa", "ERROR: No services defined?");
+                            return false;
+                          }
+                          XMLPrinter printer;
+                          // Iterate over each <service> element therein
+                          // FIXME: Is this really the best way to iterate over these?
+                          for (XMLElement* service = services->FirstChildElement("service"); service; service = service->NextSiblingElement("service")) {
+                            if(service){
+                              // Get the <status> element
+                              XMLElement* status = service->FirstChildElement("status");
+
+                              // Log the service name & status for debugging... but only if the log level is debug or higher.
+                              // Theoretically 'ESP_LOGD' handles this already, but I didn't want to generate the XML unless we're logging it.
+                              // FIXME: Can I get the tag specific log level? Not super important since it can't be higher than the global level, but still annoying.
+                              if (esphome::logger::global_logger->get_log_level() >= ESPHOME_LOG_LEVEL_DEBUG) {
+                                status->Accept(&printer);
+                                ESP_LOGD("mijofa", "%s: %s", service->Attribute("name"), printer.CStr());
+                                printer.ClearBuffer();
+                              }
+
+                              total_status_count += 1;
+                              // Ensure it says '0'
+                              int service_status = status->IntText();
+                              if ( service_status != 0 ) {
+                                // FIXME: not being 0 means it's one of these: https://github.com/MMonit/monit/blob/master/src/event.h#L45-L79
+                                //        which is supposed to indicate the type of test which failed, but is an incomplete & legacy list now, see <errors> above...
+                                failing_status_count += 1;
+                                // // FIXME: count the number of failed services, so we can display a number.
+                                // return false;
+                              }
+                            }
+                          }
+
+                          // FIXME: As if there's no single-line way of doing this.
+                          // FIXME: Since it won't actually do stuff until 'perform' is run, we can the state of this instead of setting our own variable
+                          auto call_total_status_count = id(monit_total_status_count).make_call();
+                          auto call_failing_status_count = id(monit_failing_status_count).make_call();
+                          call_total_status_count.set_value(total_status_count);
+                          call_failing_status_count.set_value(failing_status_count);
+                          call_total_status_count.perform();
+                          call_failing_status_count.perform();
+
+                          ESP_LOGD("mijofa", "%d / %d", failing_status_count, total_status_count);
+                          if (failing_status_count == 0) {
+                            // No failed services? Must be good then.
+                            return true;
+                          } else {
+                            // FIXME: Store this number somewhere...
+                            return false;
+                          }
+                        });
+                  then:
+                    - logger.log:
+                        level: DEBUG
+                        tag: "mijofa"
+                        format: "All good! No monit issues detected in %.0f services"
+                        args:
+                          - !lambda "id(monit_total_status_count).state"
+                  else:
+                    - logger.log:
+                        level: INFO
+                        tag: "mijofa"
+                        format: "Problem! Monit reported %.0f failed service(s) of %.0f total"
+                        args:
+                          - !lambda "id(monit_failing_status_count).state"
+                          - !lambda "id(monit_total_status_count).state"
+
+interval:
+  - interval: "${monit_check_interval}"
+    # FIXME: Can I have this wait until the network is up & running?
+    startup_delay: 10s
+    then:
+      # FIXME: Only if not already running?
+      - script.execute: monit_check
+
+sensor:
+  - platform: number
+    disabled_by_default: true
+    source_id: monit_total_status_count
+    id: monit_total_status_count_sensor
+    name: "Total status count"
+    entity_category: DIAGNOSTIC
+  - platform: number
+    disabled_by_default: true
+    source_id: monit_failing_status_count
+    id: monit_failing_status_count_sensor
+    name: "Failing status count"
+    entity_category: DIAGNOSTIC
+
+binary_sensor:
+  - platform: template
+    id: monit_check_error
+    disabled_by_default: true
+    name: "Monit check failed?"
+    device_class: problem
+    entity_category: DIAGNOSTIC
+number:
+  - platform: template
+    id: monit_total_status_count
+    internal: true
+
+    min_value: 0
+    step: 1
+    # FIXME: Reasonable max?
+    max_value: 255
+    optimistic: true
+    # FIXME: Is it more valid to use 'set_action'?
+    # on_value:
+    #   then:
+    #     - lvgl.label.update:
+    #         id: label_total_status_count
+    #         text: !lambda 'return str_sprintf("%.0f", x);'
+  - platform: template
+    id: monit_failing_status_count
+    internal: true
+
+    min_value: 0
+    step: 1
+    # FIXME: Reasonable max?
+    max_value: 255
+    optimistic: true
+    # FIXME: Is it more valid to use 'set_action'?
+    # on_value:
+    #   then:
+    #     - lvgl.label.update:
+    #         id: label_failing_status_count
+    #         text: !lambda 'return str_sprintf("%.0f", x);'
