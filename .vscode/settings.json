@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        // https://marketplace.visualstudio.com/items?itemName=ESPHome.esphome-vscode
+        "*.yaml": "esphome","*.yml": "esphome",
+    }
+}
