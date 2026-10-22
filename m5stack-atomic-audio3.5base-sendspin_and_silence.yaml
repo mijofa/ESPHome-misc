@@ -37,7 +37,7 @@ external_components:
       # FIXME: Can I remove this and just set `use_mclk: false`? UPDATE: No
       - es8311
     refresh: 1d
-    #
+
 ### i2c/i2s communication bus
 i2c:
   - id: audio_base_i2c_bus
@@ -78,7 +78,6 @@ switch:
     on_turn_on:
       then:
         - media_player.unmute: media_player_sendspin
-
 
 ### Audio DAC for volume control
 # This DAC is what's causing the loud pop when silent for a bit
