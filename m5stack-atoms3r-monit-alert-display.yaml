@@ -2,7 +2,7 @@ esphome:
   on_boot:
     then:
       - script.execute: update_display
-      - lvgl.page.show: page_loading
+      - lvgl.page.show: page_pending
       # Set initial backlight brightness to 100%
       # FIXME: Can this restore from previous brightness while also starting as 'off' on boot?
       - light.control:
@@ -183,7 +183,7 @@ lvgl:
       bg_color: BLACK
       bg_opa: COVER
     pages:
-      - id: page_loading
+      - id: page_pending
         bg_color: black
         bg_opa: COVER
         bg_image_recolor: WHITE
