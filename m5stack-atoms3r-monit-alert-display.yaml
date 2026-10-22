@@ -1,0 +1,221 @@
+esphome:
+  on_boot:
+    then:
+      - script.execute: update_display
+      - lvgl.page.show: page_loading
+      # Set initial backlight brightness to 100%
+      # FIXME: Can this restore from previous brightness while also starting as 'off' on boot?
+      - light.control:
+          id: atoms3r_display_backlight
+          state: off
+          brightness: 100%
+
+api:
+  on_client_connected:
+    then:
+      - script.execute: update_display
+    #   - switch.turn_on: monit_check_ready
+
+wifi:
+  on_connect:
+    then:
+      - script.execute: update_display
+
+packages:
+  remote_package_files:
+    url: https://github.com/mijofa/ESPHome-misc
+    files:
+      - m5stack-atoms3r-display_and_motion.yaml
+      - monit-summary.yaml
+    refresh: always
+
+# FIXME: This should just be a "loading screen" script, which finishes once a "ready" switch is flipped.
+#        Monit handling belongs elsewhere, and "page" definitions don't belong in the same file/script
+script:
+  - id: update_display
+    mode: restart
+    then:
+      - if:
+          all:
+            - switch.is_on: monit_check_ready
+            - or:
+                - not:
+                  - wireguard.enabled:
+                - and:
+                  - wireguard.enabled:
+                  - wireguard.peer_online:
+            - not:
+                all:
+                  - binary_sensor.is_off:
+                      id: monit_check_error
+                  - number.in_range:
+                      id: monit_failing_status_count
+                      below: 0
+                  - number.in_range:
+                      id: monit_total_status_count
+                      below: 0
+
+          then:
+            - if:
+                any:
+                  - binary_sensor.is_on:  # http(s) request failed
+                      id: monit_check_error
+                  - number.in_range:  # At least one failed service
+                      id: monit_failing_status_count
+                      above: 1
+                  - number.in_range:  # No services at all?
+                      id: monit_total_status_count
+                      below: 0
+                then:
+                  - lvgl.page.show: page_fail
+                  - button.press: atoms3r_display_lvgl_inactivity_reset
+                  # FIXME: Turn the backlight on?
+                else:
+                  - lvgl.page.show: page_ok
+          else:
+            # FIXME: Flatten this deep if/else statment into a lambda
+            - if:
+                condition:
+                  - not:
+                    - wifi.connected:
+                then:  # Network not connected
+                  - lvgl.label.update:
+                      id: label_pending_what
+                      text: 'WiFi'
+                else:
+                  - if:
+                      condition:
+                        - wireguard.enabled:
+                      else:
+                        - if:
+                            condition:
+                              - not:
+                                - api.connected:
+                                    state_subscription_only: true
+                            then:
+                              - lvgl.label.update:
+                                  id: label_pending_what
+                                  text: 'API'
+                            else:
+                              - lvgl.label.update:
+                                  id: label_pending_what
+                                  text: 'HTTP(s)'
+                      then:  # Not on home wifi (see on_boot)
+                        - if:
+                            condition:
+                              - not:
+                                - time.has_time:
+                            then:  # Time not synced
+                              - lvgl.label.update:
+                                  id: label_pending_what
+                                  text: 'Time'
+                            else:
+                              - if:
+                                  condition:
+                                    - not:
+                                      - wireguard.peer_online:
+                                  then:  # Wireguard not connected
+                                    - lvgl.label.update:
+                                        id: label_pending_what
+                                        text: 'Wireguard'
+                                  else:
+                                    # NOTE: If we were going to wait for 'API' over Wireguard, here is where we would do that.
+                                    - lvgl.label.update:
+                                        # NOTE: This never quite triggers because Wireguard has no on_connect option.
+                                        id: label_pending_what
+                                        text: 'HTTP(s)'
+      - lvgl.widget.refresh:
+
+number:
+  - id: !extend monit_total_status_count
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: label_total_status_count
+            text: !lambda 'return str_sprintf("%.0f", x);'
+        - script.execute: update_display
+
+  - id: !extend monit_failing_status_count
+    on_value:
+      then:
+        - if:
+            all:
+              - binary_sensor.is_on: monit_check_error
+              # FIXME: Also check that 'x' is 0?
+            then:
+              - lvgl.label.update:
+                  id: label_failing_status_count
+                  text: 'HTTP(s)'
+            else:
+              - lvgl.label.update:
+                  id: label_failing_status_count
+                  text: !lambda 'return str_sprintf("%.0f", x);'
+        - script.execute: update_display
+
+## Display
+font:
+  - file: "gfonts://Roboto"
+    id: roboto_20
+    size: 20
+image:
+  - platform: file
+    # NOTE: Google calls this 'pending' and they made the damn theme, wtf is this shit?!
+    file: mdi:dots-horizontal-circle-outline
+    id: file_pending
+    type: GRAYSCALE
+    transparency: alpha_channel
+    resize: 96x96
+  - platform: file
+    file: mdi:alert-outline
+    id: file_alert
+    type: GRAYSCALE
+    transparency: alpha_channel
+    resize: 96x96
+  - platform: file
+    file: mdi:check-outline
+    id: file_ok
+    type: GRAYSCALE
+    transparency: alpha_channel
+    resize: 96x96
+lvgl:
+  - id: !extend atoms3r_display_lvgl
+    bottom_layer:
+      bg_color: BLACK
+      bg_opa: COVER
+    pages:
+      - id: page_loading
+        bg_color: black
+        bg_opa: COVER
+        bg_image_recolor: WHITE
+        bg_image_src: file_pending
+        widgets:
+          - label:
+              id: label_pending_what
+              align: BOTTOM_MID
+              pad_bottom: 2
+              text_font: roboto_20
+              text_color: WHITE
+      - id: page_ok
+        bg_color: GREEN
+        bg_opa: COVER
+        bg_image_recolor: WHITE
+        bg_image_src: file_ok
+        widgets:
+          - label:
+              id: label_total_status_count
+              align: BOTTOM_MID
+              pad_bottom: 2
+              text_font: roboto_20
+              text_color: WHITE
+      - id: page_fail
+        bg_color: RED
+        bg_opa: COVER
+        bg_image_recolor: WHITE
+        bg_image_src: file_alert
+        widgets:
+          - label:
+              id: label_failing_status_count
+              align: BOTTOM_MID
+              pad_bottom: 2
+              text_font: roboto_20
+              text_color: WHITE
