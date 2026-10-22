@@ -18,9 +18,7 @@ script:
       - logger.log:
           level: DEBUG
           tag: "mijofa"
-          format: "Performing HTTP request to: %s"
-          args:
-            - "${monit_url}"
+          format: "Performing HTTP request to: ${monit_url}"
       - http_request.get:
           url: "${monit_url}"
           request_headers:
@@ -34,9 +32,7 @@ script:
               - logger.log:
                   level: ERROR
                   tag: "mijofa"
-                  format: "Problem! Error occurred when performing HTTP request: %s"
-                  args:
-                    - "${monit_url}"
+                  format: "Problem! Error occurred when performing HTTP request: ${monit_url}"
               - binary_sensor.template.publish:
                   id: monit_check_error
                   state: ON
@@ -163,15 +159,15 @@ script:
                         tag: "mijofa"
                         format: "All good! No monit issues detected in %.0f services"
                         args:
-                          - !lambda "id(monit_total_status_count).state"
+                          - "id(monit_total_status_count).state"
                   else:
                     - logger.log:
                         level: INFO
                         tag: "mijofa"
                         format: "Problem! Monit reported %.0f failed service(s) of %.0f total"
                         args:
-                          - !lambda "id(monit_failing_status_count).state"
-                          - !lambda "id(monit_total_status_count).state"
+                          - "id(monit_failing_status_count).state"
+                          - "id(monit_total_status_count).state"
 
 interval:
   - interval: "${monit_check_interval}"
