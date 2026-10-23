@@ -138,6 +138,8 @@ audio_dac:
     i2c_id: stopwatch_i2c_bus
     id: stopwatch_dac
     # address: 0x18
+    use_microphone: True
+    sample_rate: 32000
 i2s_audio:
   - id: stopwatch_i2s_audio
     i2s_mclk_pin: GPIO18
