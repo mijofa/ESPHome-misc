@@ -37,8 +37,6 @@ script:
     then:
       - if:
           all:
-            - not:
-                - lvgl.page.is_showing: page_pending
             - switch.is_on: monit_check_ready
             - or:  # Wireguard disabled OR connected
                 - not:
