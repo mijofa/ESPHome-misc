@@ -138,7 +138,7 @@ audio_dac:
     i2c_id: stopwatch_i2c_bus
     id: stopwatch_dac
     # address: 0x18
-    use_microphone: True
+    # use_microphone: True
     sample_rate: 32000
 i2s_audio:
   - id: stopwatch_i2s_audio
@@ -153,9 +153,15 @@ speaker:
     i2s_dout_pin: GPIO16
     dac_type: external
     channel: mono  # FIXME: Is it more efficient to say 'left'?
-microphone:
-  - platform: i2s_audio
-    i2s_audio_id: stopwatch_i2s_audio
-    id: stopwatch_mic
-    i2s_din_pin: GPIO21
-    adc_type: external
+# microphone:
+#   - platform: i2s_audio
+#     i2s_audio_id: stopwatch_i2s_audio
+#     id: stopwatch_mic
+#     i2s_din_pin: GPIO21
+#     adc_type: external
+
+# display:
+#   - id: stopwatch_display
+
+#     platform: mipi_spi
+#       model: CO5300
