@@ -107,13 +107,23 @@ number:
     on_value:
       then:
         - if:
-            all:
+            all:  # Monit failed HTTP
               - binary_sensor.is_on: monit_check_error
               # FIXME: Also check that 'x' is 0?
             then:
-              - lvgl.label.update:
-                  id: label_failing_status_count
-                  text: 'HTTP(s)'
+                - if:
+                    all:  # Wireguard enabled, but not connected
+                        - wireguard.enabled:
+                        - not:
+                            wireguard.peer_online:
+                    then:
+                        - lvgl.label.update:
+                            id: label_pending_what
+                            text: "Wireguard"
+                    else:
+                        - lvgl.label.update:
+                            id: label_failing_status_count
+                            text: 'HTTP(s)'
             else:
               - lvgl.label.update:
                   id: label_failing_status_count
