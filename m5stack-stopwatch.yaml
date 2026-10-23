@@ -47,3 +47,80 @@ binary_sensor:
       number: GPIO1
       inverted: true
     name: Blue button
+
+# I²C bus
+i2c:
+  - id: stopwatch_i2c_bus
+    sda: GPIO47
+    scl: GPIO48
+    scan: True
+
+# IMU & RTC
+# ref: https://docs.m5stack.com/en/core/StopWatch#imu--rtc
+time:
+  - platform: rx8130
+    i2c_id: stopwatch_i2c_bus
+    id: rx8130_time
+    # address: 0x32
+motion:
+  - platform: bmi270
+    i2c_id: stopwatch_i2c_bus
+    id: stopwatch_motion_hub
+    # address: 0x68
+
+sensor:
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_acceleration_x
+    type: acceleration_x
+    name: "Accel X"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_acceleration_y
+    type: acceleration_y
+    name: "Accel Y"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_acceleration_z
+    type: acceleration_z
+    name: "Accel Z"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_angular_rate_x
+    type: angular_rate_x
+    name: "Angle X"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_angular_rate_y
+    type: angular_rate_y
+    name: "Angle Y"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_angular_rate_z
+    type: angular_rate_z
+    name: "Angle Z"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_gyroscope_x
+    type: gyroscope_x
+    name: "Gyro X"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_gyroscope_y
+    type: gyroscope_y
+    name: "Gyro Y"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_gyroscope_z
+    type: gyroscope_z
+    name: "Gyro Z"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_roll
+    type: roll
+    name: "Roll"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_pitch
+    type: pitch
+    name: "Pitch"
