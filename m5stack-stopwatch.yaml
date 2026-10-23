@@ -34,10 +34,11 @@ psram:
   speed: 80MHz
 
 binary_sensor:
+  # https://docs.m5stack.com/en/core/StopWatch#key
   - id: KEYA
     platform: gpio
     pin: GPIO2
-    name: Yello button
+    name: Yellow button
   - id: KEYB
     platform: gpio
     pin: GPIO1
