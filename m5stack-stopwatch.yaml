@@ -130,3 +130,81 @@ sensor:
     id: stopwatch_pitch
     type: pitch
     name: "Pitch"
+
+# M5IOE1
+# ref: https://docs.m5stack.com/en/core/StopWatch#m5ioe1
+# ref: https://github.com/m5stack/esphome-yaml/blob/main/components/m5ioe1/README.md
+external_components:
+  - source:
+      type: git
+      url: https://github.com/m5stack/esphome-yaml/
+      path: components/
+      # FIXME: This commit somehow breaks compiling with the switch.m5ioe1 component: https://github.com/m5stack/esphome-yaml/commit/86a199ea853fbfcaa27ca64f5b67416bb70a3fbf
+      ref: main
+    components:
+      - m5ioe1  # https://github.com/m5stack/esphome-yaml/tree/main/components/m5ioe1
+      # - es8311
+    refresh: 1d
+m5ioe1:
+  id: stopwatch_m5ioe1_hub
+  reset: True
+  address: 0x4F
+
+switch:
+  # Audio
+  - platform: gpio
+    # This MUST be on before ES8311 setup below.
+    # This is the power supply for the audio DAC & ADC,
+    # without this the ES8311 chip won't respond on i2c and setup will fail.
+    # AIUI, the upstream firmware leaves it off until the audio player 'app' is started,
+    # at which point it powers the ES8311 on, then initialises the driver.
+    # ESPHome initialises all drivers on boot.
+    # FIXME: Does this need to be a switch?
+    id: stopwatch_psu_audio
+    restore_mode: ALWAYS_ON
+    internal: true
+    pin:
+        m5ioe1_id: stopwatch_m5ioe1_hub
+        number: 2  # PYG3
+        # mode:
+        #     output: true
+        #     open_drain: false
+  - platform: gpio
+    # This just enables the speaker/amplifier.
+    # No sound will play with this off, but that's ok
+    id: stopwatch_speaker_enable
+    pin:
+        m5ioe1_id: stopwatch_m5ioe1_hub
+        number: 9  # PYG10
+    name: "Speaker enable"
+    restore_mode: ALWAYS_ON
+    internal: false
+# Audio
+# ref: https://docs.m5stack.com/en/core/StopWatch#audio
+audio_dac:
+  - platform: es8311
+    i2c_id: stopwatch_i2c_bus
+    id: stopwatch_dac
+    # address: 0x18
+    use_microphone: True
+    # sample_rate: 32000
+    # bits_per_sample: 16bit
+i2s_audio:
+  - id: stopwatch_i2s_audio
+    i2s_mclk_pin: GPIO18
+    i2s_bclk_pin: GPIO17
+    i2s_lrclk_pin: GPIO15
+speaker:
+  - platform: i2s_audio
+    i2s_audio_id: stopwatch_i2s_audio
+    audio_dac: stopwatch_dac
+    id: stopwatch_speaker
+    i2s_dout_pin: GPIO21  # DOUT on the device
+    dac_type: external
+    channel: mono  # FIXME: Is it more efficient to say 'left'?
+microphone:
+  - platform: i2s_audio
+    i2s_audio_id: stopwatch_i2s_audio
+    id: stopwatch_mic
+    i2s_din_pin: GPIO16  # DIN on the device
+    adc_type: external
