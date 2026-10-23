@@ -38,13 +38,13 @@ script:
       - if:
           all:
             - switch.is_on: monit_check_ready
-            - or:
+            - or:  # Wireguard disabled OR connected
                 - not:
                   - wireguard.enabled:
                 - and:
                   - wireguard.enabled:
                   - wireguard.peer_online:
-            - not:
+            - not:  # Monit response not yet processed/received
                 all:
                   - binary_sensor.is_off:
                       id: monit_check_error
@@ -54,7 +54,6 @@ script:
                   - number.in_range:
                       id: monit_total_status_count
                       below: 0
-
           then:
             - if:
                 any:
@@ -74,56 +73,25 @@ script:
                   - lvgl.page.show: page_ok
           else:
             # FIXME: Flatten this deep if/else statment into a lambda
-            - if:
-                condition:
-                  - not:
-                    - wifi.connected:
-                then:  # Network not connected
-                  - lvgl.label.update:
-                      id: label_pending_what
-                      text: 'WiFi'
-                else:
-                  - if:
-                      condition:
-                        - wireguard.enabled:
-                      else:
-                        - if:
-                            condition:
-                              - not:
-                                - api.connected:
-                                    state_subscription_only: true
-                            then:
-                              - lvgl.label.update:
-                                  id: label_pending_what
-                                  text: 'API'
-                            else:
-                              - lvgl.label.update:
-                                  id: label_pending_what
-                                  text: 'HTTP(s)'
-                      then:  # Not on home wifi (see on_boot)
-                        - if:
-                            condition:
-                              - not:
-                                - time.has_time:
-                            then:  # Time not synced
-                              - lvgl.label.update:
-                                  id: label_pending_what
-                                  text: 'Time'
-                            else:
-                              - if:
-                                  condition:
-                                    - not:
-                                      - wireguard.peer_online:
-                                  then:  # Wireguard not connected
-                                    - lvgl.label.update:
-                                        id: label_pending_what
-                                        text: 'Wireguard'
-                                  else:
-                                    # NOTE: If we were going to wait for 'API' over Wireguard, here is where we would do that.
-                                    - lvgl.label.update:
-                                        # NOTE: This never quite triggers because Wireguard has no on_connect option.
-                                        id: label_pending_what
-                                        text: 'HTTP(s)'
+            - lvgl.page.show: page_pending
+            - lvgl.label.update:
+                id: label_pending_what
+                text: !lambda |-
+                    if (id(monit_check_ready).state) {  // We're doing the HTTP(s) request, don't bother checking anything else.
+                        return "HTTP(s)";
+                    } else if (! id(net_wifi).is_connected()){
+                        return "WiFi";
+                    } else if (id(vpn_wireguard).is_enabled()) {
+                        // Wireguard's enabled, there's some extra steps to take
+                        if (! id(sntp_time).now().is_valid()) {
+                            return "Time";
+                        } else if (! id(vpn_wireguard).is_peer_up()) {
+                            return "Wireguard";
+                        };
+                    } else if (! id(api_id).is_connected_with_state_subscription()) {
+                        return "API";
+                    };
+                    return "???";  // FIXME: I want to catch everything here, but if we reach this point something was missed.
       - lvgl.widget.refresh:
 
 number:
