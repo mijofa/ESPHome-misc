@@ -37,8 +37,8 @@ binary_sensor:
   - id: KEYA
     platform: gpio
     pin: GPIO2
-    name: Blue button
+    name: Yello button
   - id: KEYB
     platform: gpio
     pin: GPIO1
-    name: Yellow button
+    name: Blue button
