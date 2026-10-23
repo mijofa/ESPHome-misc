@@ -124,3 +124,30 @@ motion:
 #     id: stopwatch_pitch
 #     type: pitch
 #     name: "Pitch"
+
+# Audio
+# ref: https://docs.m5stack.com/en/core/StopWatch#audio
+audio_dac:
+  - platform: es8311
+    i2c_id: stopwatch_i2c_bus
+    id: stopwatch_dac
+    # address: 0x18
+i2s_audio:
+  - id: stopwatch_i2s_audio
+    i2s_mclk_pin: GPIO18
+    i2s_bclk_pin: GPIO17
+    i2s_lrclk_pin: GPIO15
+speaker:
+  - platform: i2s_audio
+    i2s_audio_id: stopwatch_i2s_audio
+    audio_dac: stopwatch__dac
+    id: stopwatch_i2s_speaker
+    i2s_dout_pin: GPIO16
+    dac_type: external
+    channel: mono  # FIXME: Is it more efficient to say 'left'?
+microphone:
+  - platform: i2s_audio
+    i2s_audio_id: stopwatch_i2s_audio
+    id: stopwatch_mic
+    i2s_din_pin: GPIO21
+    adc_type: external
