@@ -214,6 +214,15 @@ switch:
     name: "Speaker enable"
     restore_mode: ALWAYS_ON
     internal: false
+
+  - platform: gpio
+    id: stopwatch_psu_display
+    restore_mode: ALWAYS_ON
+    internal: True
+    pin:
+        m5ioe1_id: stopwatch_m5ioe1_hub
+        number: 7  # PYG8
+
 # Audio
 # ref: https://docs.m5stack.com/en/core/StopWatch#audio
 audio_dac:
@@ -243,3 +252,70 @@ microphone:
     id: stopwatch_mic
     i2s_din_pin: GPIO16  # DIN on the device
     adc_type: external
+
+# AMOLED
+# ESP32S3R8 	G39 	    G40 	    G38 	    G41 	    G42 	    G46 	    G45
+# CO5300 	    OLED_CS 	OLED_SCK 	OLED_TE 	OLED_D0 	OLED_D1 	OLED_D2 	OLED_D3
+# The display reset is controlled via PYG5 (PYB_OLED_RST) of the M5IOE1 expansion chip.
+spi:
+  - id: stopwatch_qspi_hub
+    type: quad
+    clk_pin: GPIO40  # PYB_TP_RST
+    data_pins:
+      - GPIO41  # OLED_D0
+      - GPIO42  # OLED_D1
+      - number: GPIO46  # OLED_D2
+        ignore_strapping_warning: True
+      - number: GPIO45  # OLED_D3
+        ignore_strapping_warning: True
+display:
+  - platform: mipi_spi
+    id: stopwatch_display
+    model: CO5300  # FIXME: ...?
+    bus_mode: quad
+    # data_rate: 80MHz
+    spi_mode: MODE0
+    # # dc_pin:
+    reset_pin:  # PYB_OLED_RST
+        m5ioe1_id: stopwatch_m5ioe1_hub
+        number: 4  # PYG5
+    cs_pin: GPIO39  # OLED_CS
+    dimensions:
+        width: 468
+        height: 466
+        offset_width: 6
+        # offset_height: 1
+    # color_order: rgb
+    # invert_colors: false
+    brightness: 50
+    color_depth: 16bit
+light:
+  - platform: mipi_spi
+    id: stopwatch_display_brightness
+    display_id: stopwatch_display
+    name: "Display Brightness"
+    # icon: mdi:television-shimmer
+    # icon: mdi:monitor-shimmer
+    # icon: mdi:shimmer
+    # icon: mdi:wall-sconce-round-variant
+    # icon: mdi:wall-sconce-round-variant-outline
+    icon: mdi:circle-opacity
+    # Start at 25% brightness
+    initial_state:
+      brightness: 25%
+      state: ON
+    # Remember brightness from previous boot, but always turn it on when booting
+    restore_state:
+      state: ON
+
+# Touch
+touchscreen:
+  platform: cst816
+  id: stopwatch_touchscreen
+  display: stopwatch_display
+  interrupt_pin: GPIO13  # TP_INT
+  reset_pin:  # PYB_TP_RST
+    m5ioe1_id: stopwatch_m5ioe1_hub
+    number: 3  # PYG4
+  # Not needed when 'interrupt_pin' is set
+  update_interval: never
