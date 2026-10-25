@@ -150,7 +150,36 @@ m5ioe1:
   reset: True
   address: 0x4F
 
+# # Vibration motor
+# FIXME: WTF can't I make this work?!?
+# output:
+#   - platform: m5ioe1
+#     m5ioe1_id: stopwatch_m5ioe1_hub
+#     id: stopwatch_vibration
+#     channel: PWM_1  # PYG9 / IO9 / Pin Number 8?!?!
+#     pwm_polarity: ACTIVE_HIGH
+#     inverted: false
+# fan:
+#   - platform: speed
+#     output: stopwatch_vibration
+#     name: "Vibration fan"
+#     id: stopwatch_vibration_fan
+# switch:
+#   - platform: output
+#     output: stopwatch_vibration
+#     name: "Vibration switch"
+#     id: stopwatch_vibration_pwm_switch
 switch:
+  # Vibration motor
+  - platform: gpio
+    id: stopwatch_vibration_switch
+    # FIXME: I should be able to make this work with PWM/analog outputs, but that's not been working
+    name: "Vibration switch"
+    restore_mode: ALWAYS_OFF
+    pin:
+      m5ioe1_id: stopwatch_m5ioe1_hub
+      number: 8
+
   # Audio
   - platform: gpio
     # This MUST be on before ES8311 setup below.
