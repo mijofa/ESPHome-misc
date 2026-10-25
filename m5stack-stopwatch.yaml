@@ -1,5 +1,11 @@
 # https://docs.m5stack.com/en/core/StopWatch
 esphome:
+  # libraries:
+  #   - Wire  # Required by the below, I think this is part of Arduino's standard libraries
+  #   - M5Unified = https://github.com/m5stack/M5Unified@0.2.27
+  #   - M5GFX = https://github.com/m5stack/M5GFX@0.2.34
+  #   - M5PM1 = https://github.com/m5stack/M5PM1@1.0.7
+  #   - M5IOE1 = https://github.com/m5stack/M5IOE1@1.0.9
   on_boot:
     then:
       # read the RTC time once when the system boots
@@ -44,18 +50,20 @@ binary_sensor:
   - id: stopwatch_KEYA
     platform: gpio
     pin:
-      number: GPIO2
+      number: GPIO2  # KEYA (YELLOW)
       inverted: true
     name: Yellow button
+    icon: mdi:arrow-top-left-thin-circle-outline
     internal: False
     # FIXME: Different icons?
     # FIXME: Can I specify a colour or similar?
   - id: stopwatch_KEYB
     platform: gpio
     pin:
-      number: GPIO1
+      number: GPIO1  # KEYB (BLUE)
       inverted: true
     name: Blue button
+    icon: mdi:arrow-top-right-thin-circle-outline
     internal: False
     # FIXME: Different icons?
     # FIXME: Can I specify a colour or similar?
@@ -63,8 +71,8 @@ binary_sensor:
 # I²C bus
 i2c:
   - id: stopwatch_i2c_bus
-    sda: GPIO47
-    scl: GPIO48
+    sda: GPIO47  # SYS_SDA
+    scl: GPIO48  # SYS_SCL
     scan: False
 
 # IMU & RTC
@@ -180,7 +188,9 @@ switch:
   - platform: gpio
     id: stopwatch_vibration_switch
     # FIXME: I should be able to make this work with PWM/analog outputs, but that's not been working
-    name: "Vibration switch"
+    name: "Vibration"
+    # icon: mdi:vibrate  # FIXME: Any way to make it show 'vibrate-off' when it's off?
+    icon: mdi:alert-decagram  # Looks kinda like a vibrating circle
     restore_mode: ALWAYS_OFF
     pin:
       m5ioe1_id: stopwatch_m5ioe1_hub
@@ -197,7 +207,7 @@ switch:
     # FIXME: Does this need to be a switch?
     id: stopwatch_psu_audio
     restore_mode: ALWAYS_ON
-    internal: true
+    internal: True
     pin:
         m5ioe1_id: stopwatch_m5ioe1_hub
         number: 2  # PYG3
@@ -212,6 +222,7 @@ switch:
         m5ioe1_id: stopwatch_m5ioe1_hub
         number: 9  # PYG10
     name: "Speaker enable"
+    icon: mdi:volume-vibrate  # Not great, but good enough. Couldn't find a sensible 'circular' one
     restore_mode: ALWAYS_ON
     internal: false
 
@@ -235,22 +246,22 @@ audio_dac:
     # bits_per_sample: 16bit
 i2s_audio:
   - id: stopwatch_i2s_audio
-    i2s_mclk_pin: GPIO18
-    i2s_bclk_pin: GPIO17
-    i2s_lrclk_pin: GPIO15
+    i2s_mclk_pin: GPIO18  # I2S_MCLK
+    i2s_bclk_pin: GPIO17  # I2S_BCLK
+    i2s_lrclk_pin: GPIO15  # I2S_LRCK
 speaker:
   - platform: i2s_audio
     i2s_audio_id: stopwatch_i2s_audio
     audio_dac: stopwatch_dac
     id: stopwatch_speaker
-    i2s_dout_pin: GPIO21  # DOUT on the device
+    i2s_dout_pin: GPIO21  # I2S_DSDIN  # DOUT on the sticker
     dac_type: external
     channel: mono  # FIXME: Is it more efficient to say 'left'?
 microphone:
   - platform: i2s_audio
     i2s_audio_id: stopwatch_i2s_audio
     id: stopwatch_mic
-    i2s_din_pin: GPIO16  # DIN on the device
+    i2s_din_pin: GPIO16  # I2S_ASDOUT  # DIN on the sticker
     adc_type: external
 
 # AMOLED
