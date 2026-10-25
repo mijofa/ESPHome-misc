@@ -65,7 +65,7 @@ i2c:
   - id: stopwatch_i2c_bus
     sda: GPIO47
     scl: GPIO48
-    scan: True
+    scan: False
 
 # IMU & RTC
 # ref: https://docs.m5stack.com/en/core/StopWatch#imu--rtc
