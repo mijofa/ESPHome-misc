@@ -41,18 +41,24 @@ psram:
 
 binary_sensor:
   # https://docs.m5stack.com/en/core/StopWatch#key
-  - id: KEYA
+  - id: stopwatch_KEYA
     platform: gpio
     pin:
       number: GPIO2
       inverted: true
     name: Yellow button
-  - id: KEYB
+    internal: False
+    # FIXME: Different icons?
+    # FIXME: Can I specify a colour or similar?
+  - id: stopwatch_KEYB
     platform: gpio
     pin:
       number: GPIO1
       inverted: true
     name: Blue button
+    internal: False
+    # FIXME: Different icons?
+    # FIXME: Can I specify a colour or similar?
 
 # I²C bus
 i2c:
