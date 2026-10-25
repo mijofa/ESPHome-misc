@@ -206,7 +206,16 @@ switch:
     # ESPHome initialises all drivers on boot.
     # FIXME: Does this need to be a switch?
     id: stopwatch_psu_audio
-    restore_mode: ALWAYS_ON
+
+    # When rebooting, this pin was staying HIGH across the reboot.
+    # This resulted in the es8311 never rebooting,
+    # which caused it to fail to initialise properly.
+    # So let's restore LOW, and turn it back on immediately
+    restore_mode: ALWAYS_OFF
+    on_turn_off:
+      - then:
+        - switch.turn_on: stopwatch_psu_audio
+
     internal: True
     pin:
         m5ioe1_id: stopwatch_m5ioe1_hub
