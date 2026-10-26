@@ -173,11 +173,11 @@ binary_sensor:
       return (((m5pm1_gpio_in >> 2) & 0x01) == 0);  // CHG_STAT / M5PM1_GPIO_NUM_2
 switch:
   - platform: template
-    name: "Enable Battery Charging"
+    name: "Battery Charging Enabled"
     icon: mdi:shape-circle-plus
     entity_category: CONFIG
+    disabled_by_default: True
     restore_mode: DISABLED
-
     lambda: !lambda |-
       uint8_t m5pm1_pwr_cfg = *std::move(id(stopwatch_m5pm1).read_byte(0x06));
       return (m5pm1_pwr_cfg & (1<<0));
@@ -203,9 +203,11 @@ switch:
 
 light:
   - platform: binary
+    id: stopwatch_m5pm1_led_en
     name: "Power LED"
     icon: mdi:power-standby
     entity_category: CONFIG
+    disabled_by_default: True
     output: stopwatch_m5pm1_led_en_output
     restore_state: none
     initial_state:

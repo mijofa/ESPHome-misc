@@ -57,9 +57,10 @@ display:
     color_depth: 16bit
 light:
   - platform: mipi_spi
-    id: stopwatch_display_brightness
+    id: stopwatch_display_backlight
     display_id: stopwatch_display
-    name: "Display Brightness"
+    name: "Display Backlight"
+    entity_category: CONFIG
     # icon: mdi:television-shimmer
     # icon: mdi:monitor-shimmer
     # icon: mdi:shimmer
