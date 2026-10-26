@@ -10,3 +10,68 @@ packages:
   - !include m5stack-stopwatch/Audio.yaml
   - !include m5stack-stopwatch/Display.yaml
   - !include m5stack-stopwatch/Touch.yaml
+
+light:
+  - id: !extend stopwatch_m5pm1_led_en
+    restore_state: !remove
+    restore_mode: ALWAYS_ON
+    internal: True
+  - id: !extend stopwatch_display_backlight
+    on_turn_on:
+      - then:
+          light.turn_off: stopwatch_m5pm1_led_en
+    on_turn_off:
+      - then:
+          light.turn_on: stopwatch_m5pm1_led_en
+
+# binary_sensor:
+#   - id: !extend stopwatch_KEYA
+#     on_press:
+#       - then:
+#           light.turn_on: stopwatch_display_backlight
+#   - id: !extend stopwatch_KEYB
+#     on_press:
+#       - then:
+#           light.turn_on: stopwatch_display_backlight
+
+# This is my own screensaver stuff to avoid burn-in
+number:
+  - platform: template
+    id: stopwatch_display_idle_timeout
+    name: Display idle timeout
+    icon: mdi:clock-star-four-points-outline
+    entity_category: CONFIG
+    optimistic: true
+    unit_of_measurement: "s"
+    initial_value: 45
+    restore_value: true
+    min_value: 10
+    max_value: 300
+    step: 5
+    mode: box
+
+# NOTE: The largest 'square' you can get inside the display circle is 329.5 x 329.5
+# FIXME: Set up an 'obj' per ^ and mostly mess with that?
+lvgl:
+  - id: stopwatch_display_lvgl
+    displays:
+      - stopwatch_display
+    touchscreens:
+      - touchscreen_id: stopwatch_touchscreen
+    color_depth: 16
+    theme:
+      dark_mode: true
+    keypads:
+      prev: stopwatch_KEYA
+      next: stopwatch_KEYB
+    on_idle:
+      - timeout: !lambda "return (id(stopwatch_display_idle_timeout).state * 1000);"
+        then:
+          - light.turn_off: stopwatch_display_backlight
+          # - delay: 3s  #
+          - lvgl.pause:  # FIXME: Implement some upper limit on how long this goes for, like I did for AtomS3R?
+              id: stopwatch_display_lvgl
+              show_snow: true
+    on_resume: # Note that on_resume is not the inverse of on_idle, it's the inverse of on_pause.
+      then:
+        - light.turn_on: stopwatch_display_backlight
