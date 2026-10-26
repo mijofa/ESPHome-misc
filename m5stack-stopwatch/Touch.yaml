@@ -1,0 +1,13 @@
+# This requires Display.yaml
+
+# ref: https://docs.m5stack.com/en/core/StopWatch#touch
+touchscreen:
+  platform: cst816
+  id: stopwatch_touchscreen
+  display: stopwatch_display
+  interrupt_pin: GPIO13  # TP_INT
+  reset_pin:  # PYB_TP_RST
+    m5ioe1_id: stopwatch_m5ioe1_hub
+    number: 3  # PYG4
+  # Not needed when 'interrupt_pin' is set
+  update_interval: never

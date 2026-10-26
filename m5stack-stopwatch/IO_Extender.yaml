@@ -1,0 +1,17 @@
+# M5IOE1
+# ref: https://docs.m5stack.com/en/core/StopWatch#m5ioe1
+# ref: https://github.com/m5stack/esphome-yaml/blob/main/components/m5ioe1/README.md
+external_components:
+  - source:
+      type: git
+      url: https://github.com/m5stack/esphome-yaml/
+      path: components/
+      # FIXME: This commit somehow breaks compiling with the switch.m5ioe1 component: https://github.com/m5stack/esphome-yaml/commit/86a199ea853fbfcaa27ca64f5b67416bb70a3fbf
+      ref: main
+    components:
+      - m5ioe1  # https://github.com/m5stack/esphome-yaml/tree/main/components/m5ioe1
+    refresh: 1d
+m5ioe1:
+  id: stopwatch_m5ioe1_hub
+  reset: True
+  address: 0x4F

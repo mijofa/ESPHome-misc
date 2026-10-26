@@ -1,0 +1,13 @@
+esphome:
+  on_boot:
+    then:
+      # read the RTC time once when the system boots
+      - rx8130.read_time:
+          id: stopwatch_time
+# RTC
+# ref: https://docs.m5stack.com/en/core/StopWatch#imu--rtc
+time:
+  - platform: rx8130
+    i2c_id: stopwatch_i2c_bus
+    id: stopwatch_time
+    # address: 0x32

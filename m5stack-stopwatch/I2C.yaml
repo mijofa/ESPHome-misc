@@ -1,0 +1,7 @@
+# I²C bus
+i2c:
+  - id: stopwatch_i2c_bus
+    sda: GPIO47  # SYS_SDA
+    scl: GPIO48  # SYS_SCL
+    scan: False
+    frequency: 100kHz

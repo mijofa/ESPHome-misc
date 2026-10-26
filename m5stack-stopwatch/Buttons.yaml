@@ -1,0 +1,22 @@
+# https://docs.m5stack.com/en/core/StopWatch#key
+binary_sensor:
+  - id: stopwatch_KEYA
+    platform: gpio
+    pin:
+      number: GPIO2  # KEYA (YELLOW)
+      inverted: true
+    name: Yellow button
+    icon: mdi:arrow-top-left-thin-circle-outline
+    internal: False
+    # FIXME: Different icons?
+    # FIXME: Can I specify a colour or similar?
+  - id: stopwatch_KEYB
+    platform: gpio
+    pin:
+      number: GPIO1  # KEYB (BLUE)
+      inverted: true
+    name: Blue button
+    icon: mdi:arrow-top-right-thin-circle-outline
+    internal: False
+    # FIXME: Different icons?
+    # FIXME: Can I specify a colour or similar?

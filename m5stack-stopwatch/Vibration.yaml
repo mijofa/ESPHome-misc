@@ -1,0 +1,35 @@
+# This requires IO_Extender.yaml
+
+# # Vibration motor
+# FIXME: WTF can't I make this work?!?
+#        I think the m5ioe1 component is a bit broken
+# output:
+#   - platform: m5ioe1
+#     m5ioe1_id: stopwatch_m5ioe1_hub
+#     id: stopwatch_vibration
+#     channel: PWM_1  # PYG9 / IO9 / Pin Number 8
+#     pwm_polarity: ACTIVE_HIGH
+#     inverted: false
+# fan:
+#   - platform: speed
+#     output: stopwatch_vibration
+#     name: "Vibration fan"
+#     id: stopwatch_vibration_fan
+# switch:
+#   - platform: output
+#     output: stopwatch_vibration
+#     name: "Vibration switch"
+#     id: stopwatch_vibration_pwm_switch
+
+switch:
+  # Vibration motor
+  - platform: gpio
+    id: stopwatch_vibration_switch
+    # FIXME: I should be able to make this work with PWM/analog outputs, but that's not been working
+    name: "Vibration"
+    # icon: mdi:vibrate  # FIXME: Any way to make it show 'vibrate-off' when it's off?
+    icon: mdi:alert-decagram  # Looks kinda like a vibrating circle
+    restore_mode: ALWAYS_OFF
+    pin:
+      m5ioe1_id: stopwatch_m5ioe1_hub
+      number: 8
