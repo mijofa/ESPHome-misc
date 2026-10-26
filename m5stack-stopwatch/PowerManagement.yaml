@@ -111,6 +111,32 @@ sensor:
       }
       return NAN;
 
+  - platform: copy
+    source_id: stopwatch_m5pm1_vbat_l
+    id: stopwatch_m5pm1_vbat_l_aspercentage
+    name: "Battery Percentage"
+    unit_of_measurement: "%"
+    state_class: measurement
+    device_class: battery
+    accuracy_decimals: 0
+    filters:
+      - lambda: !lambda |-
+          // ref: https://github.com/m5stack/M5StopWatch-UserDemo/blob/main/main/hal/hal_pmic.cpp#L19-L34
+          // FIXME: I copied that function as-is, does it need some cleanup?
+          constexpr uint16_t _battery_mv_empty = 3300;
+          constexpr uint16_t _battery_mv_full  = 4200;
+
+          if (x <= _battery_mv_empty) {
+              return 0;
+          }
+          if (x >= _battery_mv_full) {
+              return 100;
+          }
+
+          const auto scaled =
+              static_cast<uint32_t>(x - _battery_mv_empty) * 100U / (_battery_mv_full - _battery_mv_empty);
+          return static_cast<uint8_t>(std::min<uint32_t>(scaled, 100U));
+
 binary_sensor:
   - platform: template
     id: stopwatch_m5pm1_pwr_src_bat
