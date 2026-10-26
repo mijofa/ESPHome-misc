@@ -45,7 +45,7 @@ number:
     unit_of_measurement: "s"
     initial_value: 45
     restore_value: true
-    min_value: 10
+    min_value: 0
     max_value: 300
     step: 5
     mode: box
@@ -67,11 +67,17 @@ lvgl:
     on_idle:
       - timeout: !lambda "return (id(stopwatch_display_idle_timeout).state * 1000);"
         then:
-          - light.turn_off: stopwatch_display_backlight
-          # - delay: 3s  #
-          - lvgl.pause:  # FIXME: Implement some upper limit on how long this goes for, like I did for AtomS3R?
-              id: stopwatch_display_lvgl
-              show_snow: true
+          - if:
+              condition:
+                - number.in_range:
+                    id: stopwatch_display_idle_timeout
+                    above: 1.0
+              then:
+                - light.turn_off: stopwatch_display_backlight
+                # - delay: 3s  #
+                - lvgl.pause:  # FIXME: Implement some upper limit on how long this goes for, like I did for AtomS3R?
+                    id: stopwatch_display_lvgl
+                    show_snow: true
     on_resume: # Note that on_resume is not the inverse of on_idle, it's the inverse of on_pause.
       then:
         - light.turn_on: stopwatch_display_backlight
