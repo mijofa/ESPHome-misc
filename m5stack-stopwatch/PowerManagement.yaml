@@ -1,12 +1,25 @@
 
 # https://docs.m5stack.com/en/core/StopWatch
+
+# external_components:
+#   # I tried this for the power & charging management, but I couldn't compile when using it
+#   # I don't care to investigate or fix vibe-coded stuff...
+#   - source:
+#       type: git
+#       url: https://github.com/GitNik1/esphome-m5pm1/
+#       ref: main
+#     components:
+#       - m5pm1
+#   # Same again here...
+#   - source:
+#       type: git
+#       url: https://github.com/PFalko/m5stack-papercolor-esphome/
+#       ref: main
+#     components:
+#       - m5pm1_power
+#   # FIXME: Investigate https://github.com/h0verin/ESPHome-m5stackPaperColor/blob/main/papercolor.yaml
+
 esphome:
-  # libraries:
-  #   - Wire  # Required by the below, I think this is part of Arduino's standard libraries
-  #   - M5Unified = https://github.com/m5stack/M5Unified@0.2.27
-  #   - M5GFX = https://github.com/m5stack/M5GFX@0.2.34
-  #   - M5PM1 = https://github.com/m5stack/M5PM1@1.0.7
-  #   - M5IOE1 = https://github.com/m5stack/M5IOE1@1.0.9
   on_boot:
     then:
       - lambda: !lambda |-
@@ -26,24 +39,23 @@ esphome:
               // ESP_LOGI("mijofa_m5pm1", "Device: ID=0x%02X MODEL=0x%02X HW=0x%02X SW=0x%02X", m5pm1_id, m5pm1_model, m5pm1_hw, m5pm1_sw);
           };
 
-          auto m5pm1_pwr_src = id(stopwatch_m5pm1).read_byte(0x04);
-          ESP_LOGI("mijofa_m5pm1", "Power source: 0x%02X", std::move(*m5pm1_pwr_src));
-          auto m5pm1_wake_src = id(stopwatch_m5pm1).read_byte(0x05);
-          ESP_LOGI("mijofa_m5pm1", "wake source: 0x%02X", std::move(*m5pm1_wake_src));
+          // ESPHome's read_byte(...) has type of "optional<...>" which I can't just cast to an int directly, so I have to do this std::move(...) bullshit instead
 
-          // // 0x17
-          // auto m5pm1_pwr_cfg = id(stopwatch_m5pm1).read_byte(0x06);
-          // uint8_t m5pm1_pwr_cfg_int = std::move(*m5pm1_pwr_cfg);
-          // ESP_LOGI("mijofa_m5pm1", "Power config: 0x%02X\n  LED_EN: %d\n  BOOST_EN: %d\n  LDO: %d\n  DCDC_EN: %d\n  CHG_EN: %d",
-          //          m5pm1_pwr_cfg_int, m5pm1_pwr_cfg_int & (1<<4), m5pm1_pwr_cfg_int & (1<<3), m5pm1_pwr_cfg_int & (1<<2), m5pm1_pwr_cfg_int & (1<<1), m5pm1_pwr_cfg_int & (1<<0));
-          // // If LED_EN is on, turn it off
-          // if (m5pm1_pwr_cfg_int & (1<<4)) {
-          //   id(stopwatch_m5pm1).write_byte(0x06, (m5pm1_pwr_cfg_int & ~(1<<4)));
-          // };
-          // m5pm1_pwr_cfg = id(stopwatch_m5pm1).read_byte(0x06);
-          // m5pm1_pwr_cfg_int = std::move(*m5pm1_pwr_cfg);
-          // ESP_LOGI("mijofa_m5pm1", "Power config: 0x%02X\n  LED_EN: %d\n  BOOST_EN: %d\n  LDO: %d\n  DCDC_EN: %d\n  CHG_EN: %d",
-          //          m5pm1_pwr_cfg_int, m5pm1_pwr_cfg_int & (1<<4), m5pm1_pwr_cfg_int & (1<<3), m5pm1_pwr_cfg_int & (1<<2), m5pm1_pwr_cfg_int & (1<<1), m5pm1_pwr_cfg_int & (1<<0));
+          optional<uint8_t> maybe_m5pm1_pwr_src = id(stopwatch_m5pm1).read_byte(0x04);
+          ESP_LOGI("mijofa_m5pm1", "Power source: 0x%02X", *std::move(maybe_m5pm1_pwr_src));
+          optional<uint8_t> maybe_m5pm1_wake_src = id(stopwatch_m5pm1).read_byte(0x05);
+          ESP_LOGI("mijofa_m5pm1", "wake source: 0x%02X", *std::move(maybe_m5pm1_wake_src));
+
+          optional<uint8_t> maybe_m5pm1_pwr_cfg = id(stopwatch_m5pm1).read_byte(0x06);
+          uint8_t m5pm1_pwr_cfg = *std::move(maybe_m5pm1_pwr_cfg);  // NOTE: This was 0x17 when I started
+          ESP_LOGI("mijofa_m5pm1", "Power config: 0x%02X\n  LED_EN: %s\n  BOOST_EN: %s\n  LDO: %s\n  DCDC_EN: %s\n  CHG_EN: %s",
+                   m5pm1_pwr_cfg,
+                   (m5pm1_pwr_cfg & (1<<4)) ? "ON" : "OFF",
+                   (m5pm1_pwr_cfg & (1<<3)) ? "ON" : "OFF",
+                   (m5pm1_pwr_cfg & (1<<2)) ? "ON" : "OFF",
+                   (m5pm1_pwr_cfg & (1<<1)) ? "ON" : "OFF",
+                   (m5pm1_pwr_cfg & (1<<0)) ? "ON" : "OFF"
+          );
 
 # M5PM1
 i2c_device:
@@ -94,44 +106,83 @@ i2c_device:
   #     return NAN;
   #     // FIXME: Raise exception here
 
-# external_components:
-#   # I tried this for the power & charging management, but I couldn't compile when using it
-#   # I don't care to investigate or fix vibe-coded stuff.
-#   - source:
-#       type: git
-#       url: https://github.com/GitNik1/esphome-m5pm1/
-#       ref: main
-#     components:
-#       - m5pm1
-#   # Same again here...
-#   - source:
-#       type: git
-#       url: https://github.com/PFalko/m5stack-papercolor-esphome/
-#       ref: main
-#     components:
-#       - m5pm1_power
-#   # FIXME: Investigate https://github.com/h0verin/ESPHome-m5stackPaperColor/blob/main/papercolor.yaml
+binary_sensor:
+  - platform: template
+    id: stopwatch_m5pm1_pwr_src_5vin
+    name: "M5PM1 USB⁄DC input"
+    device_class: plug
+    entity_category: DIAGNOSTIC
+    lambda: !lambda |-
+      uint8_t m5pm1_pwr_src = *std::move(id(stopwatch_m5pm1).read_byte(0x04));
+      return m5pm1_pwr_src & (1<<0);
+  - platform: template
+    id: stopwatch_m5pm1_pwr_src_5vinout
+    name: "M5PM1 External 5V input"
+    device_class: plug
+    entity_category: DIAGNOSTIC
+    lambda: !lambda |-
+      uint8_t m5pm1_pwr_src = *std::move(id(stopwatch_m5pm1).read_byte(0x04));
+      return m5pm1_pwr_src & (1<<1);
+  - platform: template
+    id: stopwatch_m5pm1_pwr_src_bat
+    name: "M5PM1 Battery power"
+    device_class: power
+    entity_category: DIAGNOSTIC
+    lambda: !lambda |-
+      uint8_t m5pm1_pwr_src = *std::move(id(stopwatch_m5pm1).read_byte(0x04));
+      return m5pm1_pwr_src & (1<<2);
+
+  - platform: template
+    id: stopwatch_m5pm1_is_charging
+    name: "Battery is charging"
+    device_class: battery_charging
+    lambda: !lambda |-
+      // Read the GPIO Input register, pull out bit 2, check that it's 'off' because it's inverted
+      uint8_t m5pm1_gpio_in = *std::move(id(stopwatch_m5pm1).read_byte(0x12));
+      return (((m5pm1_gpio_in >> 2) & 0x01) == 0);  // CHG_STAT / M5PM1_GPIO_NUM_2
+
 switch:
   - platform: template
-    id: stopwatch_m5pm1_pwr_src
-    name: "M5PM1 USB/DC input"
-    optimistic: True
+    name: "Charge battery"
+    icon: mdi:shape-circle-plus
+    entity_category: CONFIG
+    restore_mode: DISABLED
+
     lambda: !lambda |-
-      // FIXME: Doesn't handle 5VINOUT
-      optional<uint8_t> maybe_m5pm1_pwr_src = id(stopwatch_m5pm1).read_byte(0x04);
-      uint8_t m5pm1_pwr_src = *std::move(maybe_m5pm1_pwr_src);
-      if (m5pm1_pwr_src) {
-        return m5pm1_pwr_src & 0x01;
-      }
-      // FIXME: Raise exception here
+      uint8_t m5pm1_pwr_cfg = *std::move(id(stopwatch_m5pm1).read_byte(0x06));
+      return (m5pm1_pwr_cfg & (1<<0));
+    turn_on_action:
+      then:
+        lambda: !lambda |-
+          ESP_LOGD("m5pm1_mijofa", "Turning on charging");
+          uint8_t m5pm1_pwr_cfg = *std::move(id(stopwatch_m5pm1).read_byte(0x06));
+          if (! (m5pm1_pwr_cfg & (1<<0)) ) {
+            ESP_LOGD("m5pm1_mijofa", "Turning on battery charging");
+            id(stopwatch_m5pm1).write_byte(0x06, (m5pm1_pwr_cfg | (1<<0)));
+          }
+    turn_off_action:
+      then:
+        lambda: !lambda |-
+          ESP_LOGD("m5pm1_mijofa", "Turning off charging");
+          uint8_t m5pm1_pwr_cfg = *std::move(id(stopwatch_m5pm1).read_byte(0x06));
+          if ( m5pm1_pwr_cfg & (1<<0) ) {
+            ESP_LOGD("m5pm1_mijofa", "Turning off battery charging");
+            id(stopwatch_m5pm1).write_byte(0x06, (m5pm1_pwr_cfg & ~(1<<0)));
+          }
+  # NOTE: Each of the power inputs can be disabled/enabled... I don't wanna touch that.
 
 light:
   - platform: binary
     name: "Power LED"
+    icon: mdi:power-standby
+    entity_category: CONFIG
     output: stopwatch_m5pm1_led_en_output
-    restore_mode: ALWAYS_ON
+    restore_state: none
     initial_state:
-      state: ON
+      state: !lambda |-
+          optional<uint8_t> maybe_m5pm1_pwr_cfg = id(stopwatch_m5pm1).read_byte(0x06);
+          uint8_t m5pm1_pwr_cfg = *std::move(maybe_m5pm1_pwr_cfg);
+          return m5pm1_pwr_cfg & (1<<4);
 
 output:
   - platform: template
@@ -139,12 +190,9 @@ output:
     type: binary
     write_action:
       - lambda: !lambda |-
-          auto m5pm1_pwr_cfg = id(stopwatch_m5pm1).read_byte(0x06);
-          uint8_t m5pm1_pwr_cfg_int = std::move(*m5pm1_pwr_cfg);
-          if ((!state) && (m5pm1_pwr_cfg_int & (1<<4))) {  // State is off, but LED is on
-            ESP_LOGD("m5pm1_mijofa", "Turning off LED");
-            id(stopwatch_m5pm1).write_byte(0x06, (m5pm1_pwr_cfg_int & ~(1<<4)));
-          } else if ((state) && !(m5pm1_pwr_cfg_int & (1<<4))) {  // State is on, but LED is off
-            ESP_LOGD("m5pm1_mijofa", "Turning on LED");
-            id(stopwatch_m5pm1).write_byte(0x06, (m5pm1_pwr_cfg_int | (1<<4)));
+          uint8_t m5pm1_pwr_cfg = *std::move(id(stopwatch_m5pm1).read_byte(0x06));
+          if ((!state) && (m5pm1_pwr_cfg & (1<<4))) {  // State is off, but LED is on
+            id(stopwatch_m5pm1).write_byte(0x06, (m5pm1_pwr_cfg & ~(1<<4)));
+          } else if ((state) && !(m5pm1_pwr_cfg & (1<<4))) {  // State is on, but LED is off
+            id(stopwatch_m5pm1).write_byte(0x06, (m5pm1_pwr_cfg | (1<<4)));
           };
