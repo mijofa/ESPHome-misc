@@ -40,12 +40,6 @@ esphome:
           };
 
           // ESPHome's read_byte(...) has type of "optional<...>" which I can't just cast to an int directly, so I have to do this std::move(...) bullshit instead
-
-          optional<uint8_t> maybe_m5pm1_pwr_src = id(stopwatch_m5pm1).read_byte(0x04);
-          ESP_LOGI("mijofa_m5pm1", "Power source: 0x%02X", *std::move(maybe_m5pm1_pwr_src));
-          optional<uint8_t> maybe_m5pm1_wake_src = id(stopwatch_m5pm1).read_byte(0x05);
-          ESP_LOGI("mijofa_m5pm1", "wake source: 0x%02X", *std::move(maybe_m5pm1_wake_src));
-
           optional<uint8_t> maybe_m5pm1_pwr_cfg = id(stopwatch_m5pm1).read_byte(0x06);
           uint8_t m5pm1_pwr_cfg = *std::move(maybe_m5pm1_pwr_cfg);  // NOTE: This was 0x17 when I started
           ESP_LOGI("mijofa_m5pm1", "Power config: 0x%02X\n  LED_EN: %s\n  BOOST_EN: %s\n  LDO: %s\n  DCDC_EN: %s\n  CHG_EN: %s",
@@ -63,53 +57,72 @@ i2c_device:
     i2c_id: stopwatch_i2c_bus
     address: 0x6E
 
-# sensor:
-  # # NOTE: I never got as far as testing these
-  # # - platform: template
-  # #   id: stopwatch_m5pm1_vref_l
-  # #   name: "M5PM1 VREF low byte (mV)"
-  # #   internal: False
-  # #   update_interval: 6s
-  # #   lambda: !lambda |-
-  # #     auto maybe_m5pm1_vref_l = id(stopwatch_m5pm1).read_byte_16(0x20);
-  # #     uint16_t m5pm1_vref_l = *std::move(maybe_m5pm1_vref_l);
-  # #     if (m5pm1_vref_l) {
-  # #       return m5pm1_vref_l;
-  # #     }
-  # #     // FIXME: Raise exception here
-  # - platform: template
-  #   id: stopwatch_m5pm1_vbat_l
-  #   unit_of_measurement: mV
-  #   name: "M5PM1 Battery voltage low byte (mV)"
-  #   update_interval: 6s
-  #   lambda: !lambda |-
-  #     ESP_LOGD("mijofa_m5pm1", "vbat_l lambda start");
-  #     uint16_t m5pm1_vbat_l;
-  #     if (id(stopwatch_m5pm1).read_byte_16(0x22, &m5pm1_vbat_l)) {
-  #       ESP_LOGD("mijofa_m5pm1", "vbat_l: %f mV", float(m5pm1_vbat_l));
-  #       return m5pm1_vbat_l;
-  #     }
-  #     return NAN;
-  #     // FIXME: Raise exception here
-  # - platform: template
-  #   id: stopwatch_m5pm1_vin_l
-  #   unit_of_measurement: mV
-  #   name: "M5PM1 vin low byte (mV)"
-  #   update_interval: 6s
-  #   lambda: !lambda |-
-  #     ESP_LOGD("mijofa_m5pm1", "vin_l lambda start");
-  #     uint16_t m5pm1_vin_l;
-  #     if (id(stopwatch_m5pm1).read_byte_16(0x22, &m5pm1_vin_l)) {
-  #       ESP_LOGD("mijofa_m5pm1", "vin_l: %f mV", float(m5pm1_vin_l));
-  #       return m5pm1_vin_l;
-  #     }
-  #     return NAN;
-  #     // FIXME: Raise exception here
+sensor:
+  - platform: template
+    id: stopwatch_m5pm1_vbat_l
+    name: "Battery Voltage"
+    unit_of_measurement: "mV"
+    accuracy_decimals: 0
+    device_class: voltage
+    state_class: measurement
+    entity_category: diagnostic
+    update_interval: 6s
+    lambda: !lambda |-
+      uint16_t m5pm1_vbat_l;
+      // FIXME: ESPHome's read_byte_16 is not compatible with ESPHome's read_byte... is this a bug upstream?
+      if (id(stopwatch_m5pm1).read_byte_16(0x22, &m5pm1_vbat_l)) {
+        // This swaps the endianness of the bytes from read_byte, I don't know if needing this is a bug or a feature
+        return __builtin_bswap16(m5pm1_vbat_l);
+      };
+      return NAN;
+  # FIXME: Do some percentage math on the above...  - platform: template
+  - platform: template
+    id: stopwatch_m5pm1_vin_l
+    name: "USB⁄DC Voltage"
+    unit_of_measurement: mV
+    accuracy_decimals: 0
+    device_class: voltage
+    state_class: measurement
+    entity_category: diagnostic
+    update_interval: 6s
+    lambda: !lambda |-
+      // FIXME: ESPHome's read_byte_16 is not compatible with ESPHome's read_byte... is this a bug upstream?
+      uint16_t m5pm1_vin_l;
+      if (id(stopwatch_m5pm1).read_byte_16(0x24, &m5pm1_vin_l)) {
+        // This swaps the endianness of the bytes from read_byte, I don't know if needing this is a bug or a feature
+        return __builtin_bswap16(m5pm1_vin_l);
+      }
+      return NAN;
+  - platform: template
+    id: stopwatch_m5pm1_5vin_l
+    name: "External 5V Power Voltage"
+    unit_of_measurement: mV
+    accuracy_decimals: 0
+    device_class: voltage
+    state_class: measurement
+    entity_category: diagnostic
+    update_interval: 6s
+    lambda: !lambda |-
+      // FIXME: ESPHome's read_byte_16 is not compatible with ESPHome's read_byte... is this a bug upstream?
+      uint16_t m5pm1_5vinout_l;
+      if (id(stopwatch_m5pm1).read_byte_16(0x26, &m5pm1_5vinout_l)) {
+        // This swaps the endianness of the bytes from read_byte, I don't know if needing this is a bug or a feature
+        return __builtin_bswap16(m5pm1_5vinout_l);
+      }
+      return NAN;
 
 binary_sensor:
   - platform: template
+    id: stopwatch_m5pm1_pwr_src_bat
+    name: "Battery Power Active"
+    device_class: power
+    entity_category: DIAGNOSTIC
+    lambda: !lambda |-
+      uint8_t m5pm1_pwr_src = *std::move(id(stopwatch_m5pm1).read_byte(0x04));
+      return m5pm1_pwr_src & (1<<2);
+  - platform: template
     id: stopwatch_m5pm1_pwr_src_5vin
-    name: "M5PM1 USB⁄DC input"
+    name: "USB⁄DC Power Active"
     device_class: plug
     entity_category: DIAGNOSTIC
     lambda: !lambda |-
@@ -117,33 +130,24 @@ binary_sensor:
       return m5pm1_pwr_src & (1<<0);
   - platform: template
     id: stopwatch_m5pm1_pwr_src_5vinout
-    name: "M5PM1 External 5V input"
+    name: "External 5V Power Active"
     device_class: plug
     entity_category: DIAGNOSTIC
     lambda: !lambda |-
       uint8_t m5pm1_pwr_src = *std::move(id(stopwatch_m5pm1).read_byte(0x04));
       return m5pm1_pwr_src & (1<<1);
-  - platform: template
-    id: stopwatch_m5pm1_pwr_src_bat
-    name: "M5PM1 Battery power"
-    device_class: power
-    entity_category: DIAGNOSTIC
-    lambda: !lambda |-
-      uint8_t m5pm1_pwr_src = *std::move(id(stopwatch_m5pm1).read_byte(0x04));
-      return m5pm1_pwr_src & (1<<2);
 
   - platform: template
     id: stopwatch_m5pm1_is_charging
-    name: "Battery is charging"
+    name: "Battery Charging"
     device_class: battery_charging
     lambda: !lambda |-
       // Read the GPIO Input register, pull out bit 2, check that it's 'off' because it's inverted
       uint8_t m5pm1_gpio_in = *std::move(id(stopwatch_m5pm1).read_byte(0x12));
       return (((m5pm1_gpio_in >> 2) & 0x01) == 0);  // CHG_STAT / M5PM1_GPIO_NUM_2
-
 switch:
   - platform: template
-    name: "Charge battery"
+    name: "Enable Battery Charging"
     icon: mdi:shape-circle-plus
     entity_category: CONFIG
     restore_mode: DISABLED
