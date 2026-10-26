@@ -11,6 +11,7 @@ switch:
   # FIXME: Does this need to be a switch?
   - platform: gpio
     id: stopwatch_psu_display
+    setup_priority: 875
     restore_mode: ALWAYS_ON
     internal: True
     pin:

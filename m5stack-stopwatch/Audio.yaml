@@ -11,11 +11,13 @@ switch:
     # ESPHome initialises all drivers on boot.
     # FIXME: Does this need to be a switch?
     id: stopwatch_psu_audio
+    setup_priority: 875
 
     # When rebooting, this pin was staying HIGH across the reboot.
     # This resulted in the es8311 never rebooting,
     # which caused it to fail to initialise properly.
     # So let's restore LOW, and turn it back on immediately
+    # FIXME: Why is there no initial_state here?
     restore_mode: ALWAYS_OFF
     on_turn_off:
       - then:
@@ -48,6 +50,7 @@ audio_dac:
     use_microphone: True
     # sample_rate: 32000
     # bits_per_sample: 16bit
+    setup_priority: 450
 i2s_audio:
   - id: stopwatch_i2s_audio
     i2s_mclk_pin: GPIO18  # I2S_MCLK
@@ -61,9 +64,11 @@ speaker:
     i2s_dout_pin: GPIO21  # I2S_DSDIN  # DOUT on the sticker
     dac_type: external
     channel: mono  # FIXME: Is it more efficient to say 'left'?
+    setup_priority: 450
 microphone:
   - platform: i2s_audio
     i2s_audio_id: stopwatch_i2s_audio
     id: stopwatch_mic
     i2s_din_pin: GPIO16  # I2S_ASDOUT  # DIN on the sticker
     adc_type: external
+    setup_priority: 450
