@@ -9,56 +9,110 @@ motion:
 sensor:
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_acceleration_x
+    id: stopwatch_motion_acceleration_x
     type: acceleration_x
-    name: "Accel X"
+    name: "Acceleration X"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_acceleration_y
+    id: stopwatch_motion_acceleration_y
     type: acceleration_y
-    name: "Accel Y"
+    name: "Acceleration Y"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_acceleration_z
+    id: stopwatch_motion_acceleration_z
     type: acceleration_z
-    name: "Accel Z"
+    name: "Acceleration Z"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_angular_rate_x
+    id: stopwatch_motion_angular_rate_x
     type: angular_rate_x
-    name: "Angle X"
+    name: "Angular rate X"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_angular_rate_y
+    id: stopwatch_motion_angular_rate_y
     type: angular_rate_y
-    name: "Angle Y"
+    name: "Angular rate Y"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_angular_rate_z
+    id: stopwatch_motion_angular_rate_z
     type: angular_rate_z
-    name: "Angle Z"
+    name: "Angular rate Z"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_gyroscope_x
+    id: stopwatch_motion_gyroscope_x
     type: gyroscope_x
-    name: "Gyro X"
+    name: "Gyroscope X"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_gyroscope_y
+    id: stopwatch_motion_gyroscope_y
     type: gyroscope_y
-    name: "Gyro Y"
+    name: "Gyroscope Y"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_gyroscope_z
+    id: stopwatch_motion_gyroscope_z
     type: gyroscope_z
-    name: "Gyro Z"
+    name: "Gyroscope"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_roll
+    id: stopwatch_motion_roll
     type: roll
     name: "Roll"
   - platform: motion
     motion_id: stopwatch_motion_hub
-    id: stopwatch_pitch
+    id: stopwatch_motion_pitch
     type: pitch
     name: "Pitch"
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    # NOTE: This works in 90° increments, only showing 0/90/180/270,
+    #       which is useful for rectangular displays, but not so much this circular one.
+    # FIXME: Sort out a new 'orientation' sensor that covers the full 360° range in smaller increments
+    id: stopwatch_motion_orientation
+    type: orientation
+    name: "Orientation"
+    # flat_threshold
+    filters:
+      # It reports 180° when upright, and 0° upside-down, let's fix that.
+      - lambda: !lambda |-
+          if (0 <= x && x <= 360) {
+            int y = x - 180;
+            if (y < 0) {
+              y += 360;
+            }
+            return y;
+          } else {
+            return x;
+          }
+
+binary_sensor:
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_motion_face_up
+    type: face_up
+    name: "Face Up"
+    # threshold
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_motion_face_down
+    type: face_down
+    name: "Face Down"
+    # threshold
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_motion_free_fall
+    type: free_fall
+    name: "Free Fall"
+    # threshold
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_motion_moving
+    type: moving
+    name: "Moving"
+    # threshold
+
+event:
+  - platform: motion
+    motion_id: stopwatch_motion_hub
+    id: stopwatch_motion_shake
+    name: "Shake"
+    threshold: 1.0
