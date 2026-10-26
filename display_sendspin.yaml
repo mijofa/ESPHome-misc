@@ -293,6 +293,7 @@ lvgl:
       widgets:
         - container:
             id: lvgl_widget_sendspin_art
+            align: CENTER
             # # Hide by default, don't become visible until playback state says to
             # hidden: true
             # opa: 0%
@@ -302,9 +303,11 @@ lvgl:
               - image:
                   id: incoming_art
                   src: image_sendspin_art_current
+                  align: CENTER
               - image:
                   id: outgoing_art
                   src: image_sendspin_art_current
+                  align: CENTER
 
     pages:
       - id: page_playback_state
