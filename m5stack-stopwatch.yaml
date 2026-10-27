@@ -14,6 +14,7 @@ packages:
 light:
   - id: !extend stopwatch_m5pm1_led_en
     restore_state: !remove
+    # FIXME: WARNING [Power LED] 'initial_state: state' is ignored because 'restore_mode: ALWAYS_ON' always sets the light ON at boot; use 'restore_state:' instead for per-field control
     restore_mode: ALWAYS_ON
     internal: True
   - id: !extend stopwatch_display_backlight
