@@ -75,6 +75,8 @@ sensor:
         return __builtin_bswap16(m5pm1_vbat_l);
       };
       return NAN;
+    filters:
+      - delta:  # Only send update when it changes
   # FIXME: Do some percentage math on the above...  - platform: template
   - platform: template
     id: stopwatch_m5pm1_vin_l
@@ -93,6 +95,8 @@ sensor:
         return __builtin_bswap16(m5pm1_vin_l);
       }
       return NAN;
+    filters:
+      - delta:  # Only send update when it changes
   - platform: template
     id: stopwatch_m5pm1_5vin_l
     name: "External 5V Power Voltage"
@@ -110,7 +114,8 @@ sensor:
         return __builtin_bswap16(m5pm1_5vinout_l);
       }
       return NAN;
-
+    filters:
+      - delta:  # Only send update when it changes
   - platform: copy
     source_id: stopwatch_m5pm1_vbat_l
     id: stopwatch_m5pm1_vbat_l_aspercentage
@@ -136,6 +141,7 @@ sensor:
           const auto scaled =
               static_cast<uint32_t>(x - _battery_mv_empty) * 100U / (_battery_mv_full - _battery_mv_empty);
           return static_cast<uint8_t>(std::min<uint32_t>(scaled, 100U));
+      - delta:  # Only send update when it changes
 
 binary_sensor:
   - platform: template

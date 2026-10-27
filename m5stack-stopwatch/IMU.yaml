@@ -129,6 +129,7 @@ sensor:
       #       - 180
       #       - 270
       #       - 360
+      - delta:  # Only send update when it changes
     lambda: !lambda |-
       constexpr float flat_threshold = 0.30;  // Upstream's default when set in lambda?
       // NOTE: This is copied directly from upstream's orientation_degrees() function
