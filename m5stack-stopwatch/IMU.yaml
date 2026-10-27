@@ -1,3 +1,6 @@
+substitutions:
+  stopwatch_motion_sensors_internal: True
+
 # IMU
 # ref: https://docs.m5stack.com/en/core/StopWatch#imu--rtc
 motion:
@@ -10,56 +13,78 @@ sensor:
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_acceleration_x
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: acceleration_x
     name: "Acceleration X"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_acceleration_y
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: acceleration_y
     name: "Acceleration Y"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_acceleration_z
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: acceleration_z
     name: "Acceleration Z"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_angular_rate_x
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: angular_rate_x
     name: "Angular rate X"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_angular_rate_y
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: angular_rate_y
     name: "Angular rate Y"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_angular_rate_z
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: angular_rate_z
     name: "Angular rate Z"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_gyroscope_x
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: gyroscope_x
     name: "Gyroscope X"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_gyroscope_y
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: gyroscope_y
     name: "Gyroscope Y"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_gyroscope_z
+    internal: "${stopwatch_motion_sensors_internal}"
+    disabled_by_default: True
     type: gyroscope_z
     name: "Gyroscope"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_roll
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: roll
     name: "Roll"
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_pitch
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     type: pitch
     name: "Pitch"
   - platform: motion
@@ -89,24 +114,32 @@ binary_sensor:
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_face_up
     type: face_up
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     name: "Face Up"
     # threshold
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_face_down
     type: face_down
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     name: "Face Down"
     # threshold
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_free_fall
     type: free_fall
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     name: "Free Fall"
     # threshold
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_moving
     type: moving
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     name: "Moving"
     # threshold
 
@@ -114,5 +147,7 @@ event:
   - platform: motion
     motion_id: stopwatch_motion_hub
     id: stopwatch_motion_shake
+    disabled_by_default: True
+    internal: "${stopwatch_motion_sensors_internal}"
     name: "Shake"
     threshold: 1.0
