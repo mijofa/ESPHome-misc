@@ -109,9 +109,23 @@ sensor:
   #         }
   - platform: template
     # source_id: stopwatch_motion_pitch
-    id: stopwatch_motion_orientation_mine
-    name: "Orientation mine"
-    update_interval: 1s
+    id: stopwatch_motion_orientation
+    name: "Orientation"
+    accuracy_decimals: 0
+    unit_of_measurement: °
+    icon: mdi:screen-rotation
+    update_interval: 250ms  # ref: stopwatch_motion_hub's update_interval  # FIXME: Should I make this 'never' and do the update in stopwatch_motion_hub?
+    filters:
+      - throttle_with_priority:
+          # FIXME: Not so useful without some sort of "snapping"
+          # FIXME: Can I do more of a "throttle unless changed by >= 90°"?
+          timeout: 1s
+          value:
+            - 0
+            - 90
+            - 180
+            - 270
+            - 360
     lambda: !lambda |-
       constexpr float flat_threshold = 0.30;  // Upstream's default when set in lambda?
       // NOTE: This is copied directly from upstream's orientation_degrees() function
