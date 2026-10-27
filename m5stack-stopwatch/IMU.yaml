@@ -153,8 +153,9 @@ sensor:
       // FIXME: Add some "snapping" to the 4 "quadrants" instead?
       // int quadrant = static_cast<int>(std::lround(angle / 90.0f));
       // quadrant = ((quadrant % 4) + 4) % 4;  // normalise to 0..3
-      // FIXME: Why didn't upstream need to add 180? Did ^ that math end just work on the -180 to 180 range?
-      return static_cast<int>(angle) + 180;
+      // FIXME: Why didn't upstream need to add 180? Did ^ that math just work on the -180 to 180 range?
+      // FIXME: Why do we need to avoid adding 180 to 0, surely if we need to add it to every other angle, then it's needed for 0 too?
+      return static_cast<int>(angle ? (angle + 180) : 0);
 
 binary_sensor:
   - platform: motion
