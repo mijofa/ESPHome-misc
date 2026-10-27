@@ -87,27 +87,60 @@ sensor:
     internal: "${stopwatch_motion_sensors_internal}"
     type: pitch
     name: "Pitch"
-  - platform: motion
-    motion_id: stopwatch_motion_hub
-    # NOTE: This works in 90° increments, only showing 0/90/180/270,
-    #       which is useful for rectangular displays, but not so much this circular one.
-    # FIXME: Sort out a new 'orientation' sensor that covers the full 360° range in smaller increments
-    id: stopwatch_motion_orientation
-    type: orientation
-    name: "Orientation"
-    # flat_threshold
-    filters:
-      # It reports 180° when upright, and 0° upside-down, let's fix that.
-      - lambda: !lambda |-
-          if (0 <= x && x <= 360) {
-            int y = x - 180;
-            if (y < 0) {
-              y += 360;
-            }
-            return y;
-          } else {
-            return x;
-          }
+  # - platform: motion
+  #   motion_id: stopwatch_motion_hub
+  #   # NOTE: This works in 90° increments, only showing 0/90/180/270,
+  #   #       which is useful for rectangular displays, but not so much this circular one.
+  #   # FIXME: Sort out a new 'orientation' sensor that covers the full 360° range in smaller increments
+  #   id: stopwatch_motion_orientation
+  #   type: orientation
+  #   name: "Orientation"
+  #   filters:
+  #     # It reports 180° when upright, and 0° upside-down, let's fix that.
+  #     - lambda: !lambda |-
+  #         if (0 <= x && x <= 360) {
+  #           int y = x - 180;
+  #           if (y < 0) {
+  #             y += 360;
+  #           }
+  #           return y;
+  #         } else {
+  #           return x;
+  #         }
+  - platform: template
+    # source_id: stopwatch_motion_pitch
+    id: stopwatch_motion_orientation_mine
+    name: "Orientation mine"
+    update_interval: 1s
+    lambda: !lambda |-
+      constexpr float flat_threshold = 0.30;  // Upstream's default when set in lambda?
+      // NOTE: This is copied directly from upstream's orientation_degrees() function
+      //       https://api-docs.esphome.io/namespaceesphome_1_1motion#a069689b5284aae34ab3203ff3a4b9550
+      //       With the "snapped to nearest 90%" removed [1]
+      //       ... Except it didn't work so I had to make some syntax changes, specifically {...} in if statements
+      float ax = id(stopwatch_motion_acceleration_x).state;
+      float ay = id(stopwatch_motion_acceleration_y).state;
+      float az = id(stopwatch_motion_acceleration_z).state;
+      if (std::isnan(ax) || std::isnan(ay) || std::isnan(az)){
+        return NAN;
+      };
+      float mag = std::sqrt(ax * ax + ay * ay + az * az);
+      if (mag < 0.1f){
+        return NAN;
+      };
+      // Horizontal component of gravity; near zero when the device lies flat.
+      float h = std::sqrt(ax * ax + ay * ay);
+      if (h / mag < flat_threshold){
+        return NAN;
+      };
+      // Direction of the horizontal component, ~snapped to the nearest 90°.~
+      float angle = std::atan2(ay, ax) * (180.0f / std::numbers::pi_v<float>);
+      // Actually, not snapped to nearest 90° because this is a circular display anyway. [1]
+      // FIXME: Add some "snapping" to the 4 "quadrants" instead?
+      // int quadrant = static_cast<int>(std::lround(angle / 90.0f));
+      // quadrant = ((quadrant % 4) + 4) % 4;  // normalise to 0..3
+      // FIXME: Why didn't upstream need to add 180? Did ^ that math end just work on the -180 to 180 range?
+      return static_cast<int>(angle) + 180;
 
 binary_sensor:
   - platform: motion
