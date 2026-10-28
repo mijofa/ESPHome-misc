@@ -15,4 +15,3 @@ m5ioe1:
   id: stopwatch_m5ioe1_hub
   reset: True
   address: 0x4F
-  setup_priority: 900

@@ -9,27 +9,23 @@ switch:
     # AIUI, the upstream firmware leaves it off until the audio player 'app' is started,
     # at which point it powers the ES8311 on, then initialises the driver.
     # ESPHome initialises all drivers on boot.
+    #
+    # FIXME: But toggling this off/on while audio is playing doesn't break anything?
+    #        Sound stops playing while this switch is off, but starts back up as soon as it's on... wtf?!
     # FIXME: Does this need to be a switch?
     id: stopwatch_psu_audio
-    setup_priority: 875
-
-    # When rebooting, this pin was staying HIGH across the reboot.
-    # This resulted in the es8311 never rebooting,
-    # which caused it to fail to initialise properly.
-    # So let's restore LOW, and turn it back on immediately
+    setup_priority: 899  # Immediately after m5ioe1 setup
     # FIXME: Why is there no initial_state here?
-    restore_mode: ALWAYS_OFF
-    on_turn_off:
-      - then:
-        - switch.turn_on: stopwatch_psu_audio
-
+    restore_mode: ALWAYS_ON
     internal: True
     pin:
         m5ioe1_id: stopwatch_m5ioe1_hub
         number: 2  # PYG3
-        # mode:
-        #     output: true
-        #     open_drain: false
+        mode:
+          # This has actually helped it turn on much earlier.
+          output: True
+          pullup: True
+          open_drain: False
   - platform: gpio
     # This just enables the speaker/amplifier.
     # No sound will play with this off, but that's ok
@@ -50,7 +46,6 @@ audio_dac:
     use_microphone: True
     # sample_rate: 32000
     # bits_per_sample: 16bit
-    setup_priority: 450
 i2s_audio:
   - id: stopwatch_i2s_audio
     i2s_mclk_pin: GPIO18  # I2S_MCLK
@@ -64,11 +59,9 @@ speaker:
     i2s_dout_pin: GPIO21  # I2S_DSDIN  # DOUT on the sticker
     dac_type: external
     channel: mono  # FIXME: Is it more efficient to say 'left'?
-    setup_priority: 450
 microphone:
   - platform: i2s_audio
     i2s_audio_id: stopwatch_i2s_audio
     id: stopwatch_mic
     i2s_din_pin: GPIO16  # I2S_ASDOUT  # DIN on the sticker
     adc_type: external
-    setup_priority: 450
