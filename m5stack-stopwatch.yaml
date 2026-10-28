@@ -20,10 +20,22 @@ light:
   - id: !extend stopwatch_display_backlight
     on_turn_on:
       - then:
-          light.turn_off: stopwatch_m5pm1_led_en
+        - lvgl.resume:
+            id: stopwatch_display_lvgl
+        - light.turn_off:
+            id: stopwatch_m5pm1_led_en
     on_turn_off:
       - then:
-          light.turn_on: stopwatch_m5pm1_led_en
+          - light.turn_on: stopwatch_m5pm1_led_en
+          - if:
+              condition:
+                - not:
+                  - lvgl.is_paused:
+                      id: stopwatch_display_lvgl
+              then:
+                - lvgl.pause:
+                    id: stopwatch_display_lvgl
+                    show_snow: true
 
 # binary_sensor:
 #   - id: !extend stopwatch_KEYA
