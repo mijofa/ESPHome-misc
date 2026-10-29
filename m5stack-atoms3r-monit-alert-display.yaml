@@ -27,6 +27,11 @@ binary_sensor:
       id: wireguard_status
       on_state:
         - script.execute: update_display
+        - if:
+            condition:
+              - wireguard.peer_online:
+            then:
+              - switch.turn_on: monit_check_ready
 
 packages:
   remote_package_files:
