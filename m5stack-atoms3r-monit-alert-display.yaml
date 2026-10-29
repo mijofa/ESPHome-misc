@@ -24,7 +24,7 @@ wifi:
 binary_sensor:
   - platform: wireguard
     status:
-      on_value:
+      on_state:
         - script.execute: update_display
 
 packages:
