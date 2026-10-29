@@ -22,6 +22,7 @@ script:
       - http_request.get:
           url: "${monit_url}"
           request_headers:
+            Host: monit.mijofa.au
             Accept: text/xml
           capture_response: true
           # FIXME: How large can we reasonably make this? How large must we reasonably make this? The 1kB default was too small for a basic setup

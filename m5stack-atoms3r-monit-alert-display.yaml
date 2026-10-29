@@ -21,6 +21,12 @@ wifi:
     then:
       - script.execute: update_display
 
+binary_sensor:
+  - platform: wireguard
+    status:
+      on_value:
+        - script.execute: update_display
+
 packages:
   remote_package_files:
     url: https://github.com/mijofa/ESPHome-misc
