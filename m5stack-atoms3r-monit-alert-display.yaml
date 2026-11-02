@@ -80,9 +80,19 @@ script:
                 then:
                   - lvgl.page.show: page_fail
                   - button.press: atoms3r_display_lvgl_inactivity_reset
-                  # FIXME: Turn the backlight on?
+                  # FIXME: KEEP the backlight on?
                 else:
-                  - lvgl.page.show: page_ok
+                  - if:
+                      condition:
+                        not:
+                          - lvgl.page.is_showing: page_ok
+                      then:
+                        # Only reason I set the page inside the 'if' statement is so it can be set **after** checking what page is showing.
+                        # But still need/want to set it before turning the backlight on
+                        - lvgl.page.show: page_ok
+                        - button.press: atoms3r_display_lvgl_inactivity_reset
+                      else:
+                        - lvgl.page.show: page_ok
           else:
             # FIXME: Flatten this deep if/else statment into a lambda
             - lvgl.page.show: page_pending
