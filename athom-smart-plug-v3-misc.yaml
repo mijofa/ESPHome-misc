@@ -43,7 +43,7 @@ update:
   - id: !remove update_http_request
 web_server: !remove
 captive_portal: !remove
-esp32_improv:
+improv_ble:
   authorizer: none
   wifi_timeout: 5min
 time:
