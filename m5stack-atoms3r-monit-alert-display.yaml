@@ -32,6 +32,14 @@ binary_sensor:
             then:
               - switch.turn_on: monit_check_ready
         - script.execute: update_display
+  - id: !extend monit_xml_error
+    on_state:
+      then:
+        - script.execute: update_display
+  - id: !extend monit_check_error
+    on_state:
+      then:
+        - script.execute: update_display
 
 packages:
   remote_package_files:
@@ -60,6 +68,8 @@ script:
                 all:
                   - binary_sensor.is_off:
                       id: monit_check_error
+                  - binary_sensor.is_off:
+                      id: monit_xml_error
                   - number.in_range:
                       id: monit_failing_status_count
                       below: 0
@@ -71,6 +81,8 @@ script:
                 any:
                   - binary_sensor.is_on:  # http(s) request failed
                       id: monit_check_error
+                  - binary_sensor.is_on:  # XML parsing failed
+                      id: monit_xml_error
                   - number.in_range:  # At least one failed service
                       id: monit_failing_status_count
                       above: 1
@@ -78,6 +90,39 @@ script:
                       id: monit_total_status_count
                       below: 0
                 then:
+                  # ------
+                  # FIXME: Move this section to it's own script for updating the page_fail label?
+                  - if:
+                      all:  # Monit failed HTTP
+                        - binary_sensor.is_on: monit_check_error
+                        # FIXME: Also check that 'x' is 0?
+                      then:
+                          - if:
+                              all:  # Wireguard enabled, but not connected
+                                  - wireguard.enabled:
+                                  - not:
+                                      wireguard.peer_online:
+                              then:
+                                  - lvgl.label.update:
+                                      id: label_pending_what
+                                      text: "Wireguard"
+                              else:
+                                  - lvgl.label.update:
+                                      id: label_failing_status_count
+                                      text: 'HTTP(s)'
+                      else:
+                        - if:
+                            all:
+                              - binary_sensor.is_on: monit_xml_error
+                            then:
+                              - lvgl.label.update:
+                                  id: label_failing_status_count
+                                  text: 'XML'
+                            else:
+                              - lvgl.label.update:
+                                  id: label_failing_status_count
+                                  text: !lambda 'return str_sprintf("%.0f", id(monit_failing_status_count).state);'
+                  # ------
                   - lvgl.page.show: page_fail
                   - button.press: atoms3r_display_lvgl_inactivity_reset
                   # FIXME: KEEP the backlight on?
@@ -128,28 +173,6 @@ number:
   - id: !extend monit_failing_status_count
     on_value:
       then:
-        - if:
-            all:  # Monit failed HTTP
-              - binary_sensor.is_on: monit_check_error
-              # FIXME: Also check that 'x' is 0?
-            then:
-                - if:
-                    all:  # Wireguard enabled, but not connected
-                        - wireguard.enabled:
-                        - not:
-                            wireguard.peer_online:
-                    then:
-                        - lvgl.label.update:
-                            id: label_pending_what
-                            text: "Wireguard"
-                    else:
-                        - lvgl.label.update:
-                            id: label_failing_status_count
-                            text: 'HTTP(s)'
-            else:
-              - lvgl.label.update:
-                  id: label_failing_status_count
-                  text: !lambda 'return str_sprintf("%.0f", x);'
         - script.execute: update_display
 
 ## Display

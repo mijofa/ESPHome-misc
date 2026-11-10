@@ -41,9 +41,9 @@ script:
           on_response:
             then:
               - binary_sensor.template.publish:
-                  # FIXME: What if we fail to parse the XML?
                   id: monit_check_error
                   state: OFF
+
               # ref: https://github.com/freundTech/esphome-xml-component/blob/d3cd134592293db09e5fa1a0661bee6b91f56e67/examples/parse_xml.yaml#L50-L68
               # # V1, /_status?format=xml
               # - lambda: |-
@@ -69,93 +69,111 @@ script:
 
               # FIXME: Automatically figure out which one to use?
 
-              # V2, /_status2?format=xml
-              - lambda: |-
-                  xml::parse_xml(body, [](XMLElement *root) -> bool {
-                    int total_status_count = 0;
-                    int failing_status_count = 0;
+              - if:
+                  condition:
+                    # V2, /_status2?format=xml
+                    - lambda: !lambda |-
+                        // NOTE: parse_xml will return false without ever running this function if the XML is malformed.
+                        //       Otherwise it will return whatever this function returns.
+                        //       ref: https://github.com/freundTech/esphome-xml-component/blob/main/components/xml/xml_util.cpp#L23C47-L33
+                        return xml::parse_xml(body, [](XMLElement *root) -> bool {
+                          int total_status_count = 0;
+                          int failing_status_count = 0;
 
-                    if (strcmp(root->Name(), "monit") != 0) {
-                      ESP_LOGE("mijofa", "ERROR: XML root element is not 'monit'");
-                      // FIXME: What's the best way to raise an exception here?
-                      return false;
-                    }
+                          if (strcmp(root->Name(), "monit") != 0) {
+                            ESP_LOGE("mijofa", "ERROR: XML root element is not 'monit'");
+                            // FIXME: What's the best way to raise an exception here?
+                            return false;
+                          }
 
-                    // FIXME: Do something with this...
-                    if (false){
-                      XMLElement* errors = root->FirstChildElement("errors");
-                      if (errors && errors->ChildElementCount() != 0) {
-                        // There's at least 1 error event
-                        return true;
-                      }
+                          // FIXME: Do something with this...
+                          if (false){
+                            XMLElement* errors = root->FirstChildElement("errors");
+                            if (errors && errors->ChildElementCount() != 0) {
+                              // There's at least 1 error event
+                              return true;
+                            }
 
-                      for (XMLElement* event = errors->FirstChildElement("event"); event; event = errors->NextSiblingElement("event")) {
-                        if(event){
-                          // One of these: https://github.com/MMonit/monit/blob/master/src/event.h#L89-L159
-                          // To match the test which triggered the event
-                          int event_id = atoi(event->Attribute("id"));
-                          // One of these: https://github.com/MMonit/monit/blob/master/src/monit.h#L180-L187
-                          // To match the test state which triggered the event.
-                          int event_state = atoi(event->Attribute("state"));
-                        }
-                      }
-                    }
+                            for (XMLElement* event = errors->FirstChildElement("event"); event; event = errors->NextSiblingElement("event")) {
+                              if(event){
+                                // One of these: https://github.com/MMonit/monit/blob/master/src/event.h#L89-L159
+                                // To match the test which triggered the event
+                                int event_id = atoi(event->Attribute("id"));
+                                // One of these: https://github.com/MMonit/monit/blob/master/src/monit.h#L180-L187
+                                // To match the test state which triggered the event.
+                                int event_state = atoi(event->Attribute("state"));
+                              }
+                            }
+                          }
 
-                    // Get all <services> element
-                    XMLElement* services = root->FirstChildElement("services");
-                    if (!services) {
-                      ESP_LOGW("mijofa", "ERROR: No services defined?");
-                      return false;
-                    }
-                    XMLPrinter printer;
-                    // Iterate over each <service> element therein
-                    // FIXME: Is this really the best way to iterate over these?
-                    for (XMLElement* service = services->FirstChildElement("service"); service; service = service->NextSiblingElement("service")) {
-                      if(service){
-                        // Get the <status> element
-                        XMLElement* status = service->FirstChildElement("status");
+                          // Get all <services> element
+                          XMLElement* services = root->FirstChildElement("services");
+                          if (!services) {
+                            ESP_LOGW("mijofa", "ERROR: No services defined?");
+                            return false;
+                          }
+                          XMLPrinter printer;
+                          // Iterate over each <service> element therein
+                          // FIXME: Is this really the best way to iterate over these?
+                          for (XMLElement* service = services->FirstChildElement("service"); service; service = service->NextSiblingElement("service")) {
+                            if(service){
+                              // Get the <status> element
+                              XMLElement* status = service->FirstChildElement("status");
 
-                        // Log the service name & status for debugging... but only if the log level is debug or higher.
-                        // Theoretically 'ESP_LOGD' handles this already, but I didn't want to generate the XML unless we're logging it.
-                        // FIXME: Can I get the tag specific log level? Not super important since it can't be higher than the global level, but still annoying.
-                        if (esphome::logger::global_logger->get_log_level() >= ESPHOME_LOG_LEVEL_DEBUG) {
-                          status->Accept(&printer);
-                          ESP_LOGD("mijofa", "%s: %s", service->Attribute("name"), printer.CStr());
-                          printer.ClearBuffer();
-                        }
+                              // Log the service name & status for debugging... but only if the log level is debug or higher.
+                              // Theoretically 'ESP_LOGD' handles this already, but I didn't want to generate the XML unless we're logging it.
+                              // FIXME: Can I get the tag specific log level? Not super important since it can't be higher than the global level, but still annoying.
+                              if (esphome::logger::global_logger->get_log_level() >= ESPHOME_LOG_LEVEL_DEBUG) {
+                                status->Accept(&printer);
+                                ESP_LOGD("mijofa", "%s: %s", service->Attribute("name"), printer.CStr());
+                                printer.ClearBuffer();
+                              }
 
-                        total_status_count += 1;
-                        // Ensure it says '0'
-                        int service_status = status->IntText();
-                        if ( service_status != 0 ) {
-                          // FIXME: not being 0 means it's one of these: https://github.com/MMonit/monit/blob/master/src/event.h#L45-L79
-                          //        which is supposed to indicate the type of test which failed, but is an incomplete & legacy list now, see <errors> above...
-                          failing_status_count += 1;
-                          // // FIXME: count the number of failed services, so we can display a number.
-                          // return false;
-                        }
-                      }
-                    }
+                              total_status_count += 1;
+                              // Ensure it says '0'
+                              int service_status = status->IntText();
+                              if ( service_status != 0 ) {
+                                // FIXME: not being 0 means it's one of these: https://github.com/MMonit/monit/blob/master/src/event.h#L45-L79
+                                //        which is supposed to indicate the type of test which failed, but is an incomplete & legacy list now, see <errors> above...
+                                failing_status_count += 1;
+                                // // FIXME: count the number of failed services, so we can display a number.
+                                // return false;
+                              }
+                            }
+                          }
 
-                    // FIXME: As if there's no single-line way of doing this.
-                    // FIXME: Since it won't actually do stuff until 'perform' is run, we can the state of this instead of setting our own variable
-                    auto call_total_status_count = id(monit_total_status_count).make_call();
-                    auto call_failing_status_count = id(monit_failing_status_count).make_call();
-                    call_total_status_count.set_value(total_status_count);
-                    call_failing_status_count.set_value(failing_status_count);
-                    call_total_status_count.perform();
-                    call_failing_status_count.perform();
+                          // FIXME: As if there's no single-line way of doing this.
+                          // FIXME: Since it won't actually do stuff until 'perform' is run, we can the state of this instead of setting our own variable
+                          auto call_total_status_count = id(monit_total_status_count).make_call();
+                          auto call_failing_status_count = id(monit_failing_status_count).make_call();
+                          call_total_status_count.set_value(total_status_count);
+                          call_failing_status_count.set_value(failing_status_count);
+                          call_total_status_count.perform();
+                          call_failing_status_count.perform();
 
-                    if (failing_status_count == 0) {
-                      // No failed services? Must be good then.
-                      // ESP_LOGD("All good! No monit issues detected in all %d services", total_status_count);
-                      return true;
-                    } else {
-                      // FIXME: Store this number somewhere...
-                      // ESP_LOGI("Problem! Monit reported %d failed service(s) of %d total", failing_status_count, total_status_count);
-                      return false;
-                    }
-                  });
+                          // Successfully parsed the XML and updated the sensors
+                          // Actually comparing those sensors is done elsewhere
+                          return true;
+
+                          // if (failing_status_count == 0) {
+                          //   // No failed services? Must be good then.
+                          //   // ESP_LOGD("All good! No monit issues detected in all %d services", total_status_count);
+                          //   return true;
+                          // } else {
+                          //   // FIXME: Store this number somewhere...
+                          //   // ESP_LOGI("Problem! Monit reported %d failed service(s) of %d total", failing_status_count, total_status_count);
+                          //   return false;
+                          // }
+                        });
+                  then:
+                    - binary_sensor.template.publish:
+                        id: monit_xml_error
+                        state: OFF
+                  else:
+                    - binary_sensor.template.publish:
+                        id: monit_xml_error
+                        state: ON
+
 
 switch:
   - platform: template
@@ -175,12 +193,14 @@ interval:
             - script.execute: monit_check
 
 sensor:
+  # FIXME: Should be a counter https://esphome.io/components/sensor/counter/
   - platform: number
     disabled_by_default: true
     source_id: monit_total_status_count
     id: monit_total_status_count_sensor
     name: "Total status count"
     entity_category: DIAGNOSTIC
+  # FIXME: Should be a counter https://esphome.io/components/sensor/counter/
   - platform: number
     disabled_by_default: true
     source_id: monit_failing_status_count
@@ -195,6 +215,14 @@ binary_sensor:
     name: "Monit check failed?"
     device_class: problem
     entity_category: DIAGNOSTIC
+    trigger_on_initial_state: True
+  - platform: template
+    id: monit_xml_error
+    disabled_by_default: true
+    name: "Monit XML parsing failed?"
+    device_class: problem
+    entity_category: DIAGNOSTIC
+    trigger_on_initial_state: True
 number:
   - platform: template
     id: monit_total_status_count
